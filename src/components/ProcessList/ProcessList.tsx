@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { SavedProcess, ProcessGroup, RunningProcess, SystemPortInfo } from "@/lib/types";
+import type { SavedProcess, ProcessGroup, ProcessResources, RunningProcess, SystemPortInfo } from "@/lib/types";
 import ProcessCard from "@/components/ProcessCard/ProcessCard";
 import FolderGroup from "@/components/FolderGroup/FolderGroup";
 import SystemPorts from "@/components/SystemPorts/SystemPorts";
@@ -18,6 +18,7 @@ interface ProcessListProps {
   groups: ProcessGroup[];
   runningStatus: RunningProcess[];
   systemPorts: SystemPortInfo[];
+  processResources: Map<string, ProcessResources>;
   showSystemPorts: boolean;
   searchQuery: string;
   onStart: (id: string) => Promise<void>;
@@ -36,6 +37,7 @@ export default function ProcessList({
   groups,
   runningStatus,
   systemPorts,
+  processResources,
   showSystemPorts,
   searchQuery,
   onStart,
@@ -94,6 +96,7 @@ export default function ProcessList({
       key={p.id}
       process={p}
       status={getStatus(p.id)}
+      resources={processResources.get(p.id)}
       onStart={onStart}
       onStop={onStop}
       onDelete={onDeleteProcess}

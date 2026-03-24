@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use tauri::State;
 
 use crate::config;
-use crate::models::{AppConfig, ProcessStatus, RunningProcess, SystemPortInfo};
+use crate::models::{AppConfig, PortResources, ProcessResources, ProcessStatus, RunningProcess, SystemPortInfo};
 use crate::port_scanner;
 use crate::process_manager::ProcessManager;
 
@@ -11,6 +11,7 @@ pub struct AppState {
     pub process_manager: ProcessManager,
     pub config: Mutex<AppConfig>,
     pub config_path: PathBuf,
+    pub system: Mutex<sysinfo::System>,
 }
 
 #[tauri::command]
@@ -146,4 +147,105 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
 #[tauri::command]
 pub fn refresh_ports(state: State<'_, AppState>) -> Result<Vec<RunningProcess>, String> {
     get_running_status(state)
+}
+
+#[tauri::command]
+pub fn get_process_resources(state: State<'_, AppState>) -> Result<Vec<ProcessResources>, String> {
+    use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo};
+    use std::collections::{HashMap, HashSet};
+
+    let processes = state
+        .process_manager
+        .processes
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+
+    let mut sys = state
+        .system
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+    // Build a map: port -> PID that is listening on it
+    let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
+    let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
+    let sockets = get_sockets_info(af_flags, proto_flags).unwrap_or_default();
+
+    let mut port_to_pid: HashMap<u16, u32> = HashMap::new();
+    for socket in &sockets {
+        for &pid in &socket.associated_pids {
+            match &socket.protocol_socket_info {
+                ProtocolSocketInfo::Tcp(tcp) => {
+                    if matches!(tcp.state, netstat2::TcpState::Listen) {
+                        port_to_pid.entry(tcp.local_port).or_insert(pid);
+                    }
+                }
+                ProtocolSocketInfo::Udp(udp) => {
+                    port_to_pid.entry(udp.local_port).or_insert(pid);
+                }
+            }
+        }
+    }
+
+    // Helper: get subtree PIDs for a given PID
+    let get_subtree = |root_pid: u32| -> HashSet<u32> {
+        let mut tree = HashSet::new();
+        tree.insert(root_pid);
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (pid, process) in sys.processes() {
+                if let Some(parent) = process.parent() {
+                    let pid_u32 = pid.as_u32();
+                    let parent_u32 = parent.as_u32();
+                    if tree.contains(&parent_u32) && !tree.contains(&pid_u32) {
+                        tree.insert(pid_u32);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        tree
+    };
+
+    let mut results = Vec::new();
+
+    for (id, handle) in processes.iter() {
+        if handle.status == ProcessStatus::Stopped {
+            continue;
+        }
+
+        let mut port_resources = Vec::new();
+
+        for &port in &handle.ports {
+            if let Some(&listener_pid) = port_to_pid.get(&port) {
+                // Get the subtree of the PID that owns this port
+                let subtree = get_subtree(listener_pid);
+
+                let mut cpu: f32 = 0.0;
+                let mut memory: u64 = 0;
+                for &pid in &subtree {
+                    if let Some(proc) = sys.process(sysinfo::Pid::from_u32(pid)) {
+                        cpu += proc.cpu_usage();
+                        memory += proc.memory();
+                    }
+                }
+
+                port_resources.push(PortResources {
+                    port,
+                    pid: listener_pid,
+                    cpu_usage: cpu,
+                    memory_bytes: memory,
+                });
+            }
+        }
+
+        results.push(ProcessResources {
+            id: id.clone(),
+            port_resources,
+        });
+    }
+
+    Ok(results)
 }

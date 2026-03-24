@@ -18,6 +18,7 @@ export default function Home() {
     groups,
     runningStatus,
     systemPorts,
+    processResources,
     isLoading,
     searchQuery,
     setSearchQuery,
@@ -60,6 +61,7 @@ export default function Home() {
         groups={groups}
         runningStatus={runningStatus}
         systemPorts={systemPorts}
+        processResources={processResources}
         showSystemPorts={showSystemPorts}
         searchQuery={searchQuery}
         onStart={startProcess}

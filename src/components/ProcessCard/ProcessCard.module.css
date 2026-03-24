@@ -75,6 +75,32 @@
   flex-wrap: wrap;
 }
 
+.portCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--badge-bg);
+  font-family: monospace;
+  font-size: 12px;
+  transition: opacity 0.2s;
+}
+
+.portCardDimmed {
+  opacity: 0.4;
+}
+
+.portNumber {
+  color: var(--badge-text);
+  font-weight: 500;
+}
+
+.portStats {
+  color: #d5d5d5;
+  font-size: 10px;
+}
+
 .actions {
   display: flex;
   gap: 6px;

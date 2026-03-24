@@ -25,6 +25,18 @@ export interface RunningProcess {
   ports: number[];
 }
 
+export interface PortResources {
+  port: number;
+  pid: number;
+  cpu_usage: number;
+  memory_bytes: number;
+}
+
+export interface ProcessResources {
+  id: string;
+  port_resources: PortResources[];
+}
+
 export interface SystemPortInfo {
   pid: number;
   process_name: string;

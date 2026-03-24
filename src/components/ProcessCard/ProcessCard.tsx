@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { SavedProcess, RunningProcess } from "@/lib/types";
-import PortBadge from "@/components/PortBadge/PortBadge";
+import type { SavedProcess, ProcessResources, RunningProcess } from "@/lib/types";
 import ConfirmDialog from "@/components/ConfirmDialog/ConfirmDialog";
 import styles from "./ProcessCard.module.css";
 
 interface ProcessCardProps {
   process: SavedProcess;
   status?: RunningProcess;
+  resources?: ProcessResources;
   onStart: (id: string) => Promise<void>;
   onStop: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -22,6 +22,7 @@ interface ProcessCardProps {
 export default function ProcessCard({
   process,
   status,
+  resources,
   onStart,
   onStop,
   onDelete,
@@ -45,6 +46,12 @@ export default function ProcessCard({
       ? styles.statusStarting
       : styles.statusRunning
     : styles.statusStopped;
+
+  const formatMemory = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   const handleConfirm = async () => {
     if (confirmAction === "stop") {
@@ -74,9 +81,24 @@ export default function ProcessCard({
         </div>
         {displayPorts.length > 0 && (
           <div className={styles.ports}>
-            {displayPorts.map((port) => (
-              <PortBadge key={port} port={port} dimmed={!isRunning} />
-            ))}
+            {displayPorts.map((port) => {
+              const portRes = isRunning
+                ? resources?.port_resources.find((r) => r.port === port)
+                : undefined;
+              return (
+                <div
+                  key={port}
+                  className={`${styles.portCard} ${!isRunning ? styles.portCardDimmed : ""}`}
+                >
+                  <span className={styles.portNumber}>:{port}</span>
+                  {portRes && (
+                    <span className={styles.portStats}>
+                      {portRes.cpu_usage.toFixed(1)}% &middot; {formatMemory(portRes.memory_bytes)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
         <div className={styles.actions}>

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppConfig,
+  ProcessResources,
   RunningProcess,
   SystemPortInfo,
 } from "./types";
@@ -35,4 +36,8 @@ export async function getRunningStatus(): Promise<RunningProcess[]> {
 
 export async function refreshPorts(): Promise<RunningProcess[]> {
   return invoke("refresh_ports");
+}
+
+export async function getProcessResources(): Promise<ProcessResources[]> {
+  return invoke("get_process_resources");
 }

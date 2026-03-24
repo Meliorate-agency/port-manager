@@ -33,6 +33,7 @@ pub fn run() {
                 process_manager: ProcessManager::new(),
                 config: Mutex::new(app_config),
                 config_path,
+                system: Mutex::new(sysinfo::System::new()),
             };
 
             app.manage(state);
@@ -48,6 +49,7 @@ pub fn run() {
             commands::load_config,
             commands::get_running_status,
             commands::refresh_ports,
+            commands::get_process_resources,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

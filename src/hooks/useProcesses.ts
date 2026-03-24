@@ -6,6 +6,7 @@ import type {
   ProcessGroup,
   AppConfig,
   RunningProcess,
+  ProcessResources,
   SystemPortInfo,
 } from "@/lib/types";
 import * as commands from "@/lib/commands";
@@ -18,7 +19,9 @@ export function useProcesses() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSystemPorts, setShowSystemPorts] = useState(false);
+  const [processResources, setProcessResources] = useState<Map<string, ProcessResources>>(new Map());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resourceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Use refs to always have latest state in callbacks
   const savedProcessesRef = useRef(savedProcesses);
@@ -65,6 +68,31 @@ export function useProcesses() {
       }
     };
   }, [loadAll]);
+
+  // Separate 5-second polling for CPU/RAM resources
+  useEffect(() => {
+    const fetchResources = async () => {
+      try {
+        const resources = await commands.getProcessResources();
+        const map = new Map<string, ProcessResources>();
+        for (const r of resources) {
+          map.set(r.id, r);
+        }
+        setProcessResources(map);
+      } catch (err) {
+        console.error("Resource polling error:", err);
+      }
+    };
+
+    fetchResources();
+    resourceIntervalRef.current = setInterval(fetchResources, 5000);
+
+    return () => {
+      if (resourceIntervalRef.current) {
+        clearInterval(resourceIntervalRef.current);
+      }
+    };
+  }, []);
 
   const refreshPorts = useCallback(async () => {
     try {
@@ -192,6 +220,7 @@ export function useProcesses() {
     groups,
     runningStatus,
     systemPorts,
+    processResources,
     isLoading,
     searchQuery,
     setSearchQuery,

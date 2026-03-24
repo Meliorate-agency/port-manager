@@ -41,6 +41,20 @@ pub struct RunningProcess {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct PortResources {
+    pub port: u16,
+    pub pid: u32,
+    pub cpu_usage: f32,
+    pub memory_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProcessResources {
+    pub id: String,
+    pub port_resources: Vec<PortResources>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SystemPortInfo {
     pub pid: u32,
     pub process_name: String,
