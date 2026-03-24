@@ -1,0 +1,16 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: monospace;
+  transition: opacity 0.2s;
+}
+
+.dimmed {
+  opacity: 0.4;
+}

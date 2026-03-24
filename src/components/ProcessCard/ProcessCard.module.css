@@ -1,0 +1,172 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+
+.card:hover {
+  background: var(--bg-hover);
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusRunning {
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+}
+
+.statusStarting {
+  background: #f59e0b;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.statusStopped {
+  background: var(--text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+}
+
+.command {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.directory {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.ports {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.playButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--success);
+  color: white;
+  transition: background 0.2s;
+}
+
+.playButton:hover {
+  background: var(--success-hover);
+}
+
+.stopButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--danger);
+  color: white;
+  transition: background 0.2s;
+}
+
+.stopButton:hover {
+  background: var(--danger-hover);
+}
+
+.deleteButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.deleteButton:hover {
+  color: var(--danger);
+}
+
+/* Context menu */
+.contextMenu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  min-width: 160px;
+  box-shadow: var(--shadow-lg);
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.contextMenuItem:hover {
+  background: var(--bg-hover);
+}
+
+.contextMenuDanger {
+  color: var(--danger);
+}
+
+.contextMenuDanger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.contextMenuIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
