@@ -12,6 +12,13 @@
   letter-spacing: 0.5px;
   padding: 4px 12px;
   margin-bottom: 8px;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+
+.sectionTitleDragOver {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  border: 1px dashed var(--accent);
 }
 
 .ungrouped {

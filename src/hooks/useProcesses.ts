@@ -35,10 +35,12 @@ export function useProcesses() {
         commands.loadConfig(),
         commands.getRunningStatus(),
       ]);
-      // Ensure last_ports is always an array (for old configs without it)
+      // Ensure fields have defaults (for old configs)
       const processes = config.processes.map((p) => ({
         ...p,
         last_ports: p.last_ports || [],
+        process_type: p.process_type || "Command" as const,
+        compose_file: p.compose_file || null,
       }));
       setSavedProcesses(processes);
       setGroups(config.groups);
@@ -60,7 +62,7 @@ export function useProcesses() {
       } catch (err) {
         console.error("Polling error:", err);
       }
-    }, 30000);
+    }, 5000);
 
     return () => {
       if (intervalRef.current) {
@@ -121,17 +123,28 @@ export function useProcesses() {
   const saveAndUpdateConfig = useCallback(
     async (processes: SavedProcess[], processGroups: ProcessGroup[]) => {
       const config: AppConfig = { processes, groups: processGroups };
-      await commands.saveConfig(config);
-      setSavedProcesses(processes);
-      setGroups(processGroups);
+      try {
+        await commands.saveConfig(config);
+        setSavedProcesses(processes);
+        setGroups(processGroups);
+      } catch (err) {
+        console.error("Failed to save config:", err);
+        throw err;
+      }
     },
     [],
   );
 
   const addProcess = useCallback(
-    async (data: Omit<SavedProcess, "id" | "last_ports">) => {
+    async (data: Omit<SavedProcess, "id" | "last_ports" | "process_type" | "compose_file"> & { process_type?: SavedProcess["process_type"]; compose_file?: string | null }) => {
       const id = crypto.randomUUID();
-      const newProcess: SavedProcess = { ...data, id, last_ports: [] };
+      const newProcess: SavedProcess = {
+        ...data,
+        id,
+        last_ports: [],
+        process_type: data.process_type || "Command",
+        compose_file: data.compose_file || null,
+      };
       const updated = [...savedProcessesRef.current, newProcess];
       await saveAndUpdateConfig(updated, groupsRef.current);
     },
@@ -197,22 +210,64 @@ export function useProcesses() {
     [saveAndUpdateConfig],
   );
 
+  const reorderProcesses = useCallback(
+    async (reordered: SavedProcess[]) => {
+      await saveAndUpdateConfig(reordered, groupsRef.current);
+    },
+    [saveAndUpdateConfig],
+  );
+
   const startProcess = useCallback(async (id: string) => {
-    await commands.startProcess(id);
-    const status = await commands.getRunningStatus();
-    setRunningStatus(status);
+    try {
+      await commands.startProcess(id);
+    } catch (err) {
+      console.error("Failed to start process:", err);
+    } finally {
+      try {
+        const status = await commands.getRunningStatus();
+        setRunningStatus(status);
+      } catch {}
+    }
   }, []);
 
   const stopProcess = useCallback(async (id: string) => {
-    await commands.stopProcess(id);
-    const status = await commands.getRunningStatus();
-    setRunningStatus(status);
+    try {
+      await commands.stopProcess(id);
+    } catch (err) {
+      console.error("Failed to stop process:", err);
+    } finally {
+      try {
+        const status = await commands.getRunningStatus();
+        setRunningStatus(status);
+      } catch {}
+    }
+  }, []);
+
+  const restartProcess = useCallback(async (id: string) => {
+    try {
+      await commands.stopProcess(id);
+      await commands.startProcess(id);
+    } catch (err) {
+      console.error("Failed to restart process:", err);
+    } finally {
+      try {
+        const status = await commands.getRunningStatus();
+        setRunningStatus(status);
+      } catch {}
+    }
   }, []);
 
   const killSystemProcess = useCallback(async (pid: number) => {
-    await commands.killSystemProcess(pid);
-    const ports = await commands.listSystemPorts();
-    setSystemPorts(ports);
+    try {
+      await commands.killSystemProcess(pid);
+    } catch (err) {
+      console.error("Failed to kill process:", err);
+    } finally {
+      try {
+        const ports = await commands.listSystemPorts();
+        setSystemPorts(ports);
+      } catch {}
+    }
   }, []);
 
   return {
@@ -235,8 +290,10 @@ export function useProcesses() {
     removeGroup,
     renameGroup,
     toggleGroupCollapsed,
+    reorderProcesses,
     startProcess,
     stopProcess,
+    restartProcess,
     killSystemProcess,
   };
 }

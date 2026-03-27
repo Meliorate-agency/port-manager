@@ -6,16 +6,58 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  transition: background 0.15s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: background 0.15s, border-color 0.15s, opacity 0.3s;
 }
 
 .card:hover {
   background: var(--bg-hover);
 }
 
+.dragOver {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+}
+
+.dragging {
+  opacity: 0.4;
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 2px;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.dragHandle:hover {
+  opacity: 1;
+}
+
+.card:active .dragHandle {
+  cursor: grabbing;
+}
+
+/* Restart animation */
+.restarting {
+  animation: restartFlash 1.5s ease-in-out;
+}
+
+@keyframes restartFlash {
+  0% { opacity: 1; }
+  15% { opacity: 0.3; border-color: var(--danger); }
+  40% { opacity: 0.3; }
+  60% { opacity: 0.7; border-color: var(--success); }
+  100% { opacity: 1; border-color: var(--border); }
+}
+
 .statusDot {
-  width: 10px;
-  height: 10px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -26,7 +68,7 @@
 }
 
 .statusStarting {
-  background: #f59e0b;
+  background: var(--warning);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -45,8 +87,18 @@
 }
 
 .name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
   font-size: 14px;
+}
+
+.dockerIcon {
+  width: 16px;
+  height: 16px;
+  color: #2496ed;
+  flex-shrink: 0;
 }
 
 .meta {
@@ -80,7 +132,7 @@
   align-items: center;
   gap: 6px;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: var(--badge-bg);
   font-family: monospace;
   font-size: 12px;
@@ -97,8 +149,18 @@
 }
 
 .portStats {
-  color: #d5d5d5;
+  color: var(--text-muted);
   font-size: 10px;
+}
+
+.selfCard {
+  border-color: var(--border);
+  background: transparent;
+  margin-bottom: 8px;
+}
+
+.selfCard:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
 }
 
 .actions {
@@ -114,13 +176,45 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
-  background: var(--success);
-  color: white;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  border: 1px solid var(--success);
+  color: var(--success);
   transition: background 0.2s;
 }
 
 .playButton:hover {
-  background: var(--success-hover);
+  background: color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.restartButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  transition: background 0.2s;
+}
+
+.restartButton:hover {
+  background: color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
+.restartButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.restarting .restartButton svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
 }
 
 .stopButton {
@@ -130,13 +224,14 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
-  background: var(--danger);
-  color: white;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid var(--danger);
+  color: var(--danger);
   transition: background 0.2s;
 }
 
 .stopButton:hover {
-  background: var(--danger-hover);
+  background: color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 .deleteButton {
@@ -188,7 +283,7 @@
 }
 
 .contextMenuDanger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 .contextMenuIcon {

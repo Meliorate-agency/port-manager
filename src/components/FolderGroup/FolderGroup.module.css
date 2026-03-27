@@ -17,6 +17,11 @@
   background: var(--bg-hover);
 }
 
+.headerDragOver {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  border: 1px dashed var(--accent);
+}
+
 .chevron {
   width: 16px;
   height: 16px;
@@ -57,6 +62,46 @@
 .count {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.groupActions {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.startAllButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  border: 1px solid var(--success);
+  color: var(--success);
+  transition: background 0.2s;
+}
+
+.startAllButton:hover {
+  background: color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.stopAllButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  transition: background 0.2s;
+}
+
+.stopAllButton:hover {
+  background: color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 .children {

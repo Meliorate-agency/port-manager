@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod docker;
 mod models;
 mod port_scanner;
 mod process_manager;

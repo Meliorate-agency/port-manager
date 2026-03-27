@@ -32,8 +32,10 @@ export default function Home() {
     removeGroup,
     renameGroup,
     toggleGroupCollapsed,
+    reorderProcesses,
     startProcess,
     stopProcess,
+    restartProcess,
     killSystemProcess,
   } = useProcesses();
 
@@ -66,6 +68,8 @@ export default function Home() {
         searchQuery={searchQuery}
         onStart={startProcess}
         onStop={stopProcess}
+        onRestart={restartProcess}
+        onReorderProcesses={reorderProcesses}
         onDeleteProcess={removeProcess}
         onEditProcess={setEditingProcess}
         onDeleteGroup={removeGroup}

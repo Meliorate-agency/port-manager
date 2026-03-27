@@ -1,5 +1,17 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProcessType {
+    Command,
+    DockerCompose,
+}
+
+impl Default for ProcessType {
+    fn default() -> Self {
+        ProcessType::Command
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedProcess {
     pub id: String,
@@ -9,6 +21,10 @@ pub struct SavedProcess {
     pub group_id: Option<String>,
     #[serde(default)]
     pub last_ports: Vec<u16>,
+    #[serde(default)]
+    pub process_type: ProcessType,
+    #[serde(default)]
+    pub compose_file: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

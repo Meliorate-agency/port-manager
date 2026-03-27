@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { SystemPortInfo } from "@/lib/types";
 import PortBadge from "@/components/PortBadge/PortBadge";
 import ConfirmDialog from "@/components/ConfirmDialog/ConfirmDialog";
@@ -16,27 +16,28 @@ export default function SystemPorts({ ports, searchQuery, onKill }: SystemPortsP
   const [isOpen, setIsOpen] = useState(true);
   const [killTarget, setKillTarget] = useState<{ pid: number; name: string } | null>(null);
 
-  const filtered = ports.filter((p) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.process_name.toLowerCase().includes(q) ||
-      p.local_port.toString().includes(q) ||
-      p.pid.toString().includes(q)
-    );
-  });
+  const sorted = useMemo(() => {
+    const filtered = ports.filter((p) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        p.process_name.toLowerCase().includes(q) ||
+        p.local_port.toString().includes(q) ||
+        p.pid.toString().includes(q)
+      );
+    });
 
-  // Deduplicate by PID+port
-  const unique = filtered.reduce<SystemPortInfo[]>((acc, port) => {
-    const key = `${port.pid}-${port.local_port}-${port.protocol}`;
-    if (!acc.find((p) => `${p.pid}-${p.local_port}-${p.protocol}` === key)) {
-      acc.push(port);
-    }
-    return acc;
-  }, []);
+    // Deduplicate by PID+port
+    const seen = new Set<string>();
+    const unique = filtered.filter((port) => {
+      const key = `${port.pid}-${port.local_port}-${port.protocol}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
-  // Sort by port
-  const sorted = unique.sort((a, b) => a.local_port - b.local_port);
+    return unique.sort((a, b) => a.local_port - b.local_port);
+  }, [ports, searchQuery]);
 
   return (
     <div className={styles.section}>

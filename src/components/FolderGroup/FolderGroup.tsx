@@ -8,9 +8,17 @@ import styles from "./FolderGroup.module.css";
 interface FolderGroupProps {
   group: ProcessGroup;
   count: number;
+  hasRunning: boolean;
+  hasStopped: boolean;
   onDelete: (id: string) => Promise<void>;
   onRename: (id: string, newName: string) => Promise<void>;
   onToggleCollapsed: (id: string) => Promise<void>;
+  onStartAll: () => Promise<void>;
+  onStopAll: () => Promise<void>;
+  isDragOver?: boolean;
+  registerRef?: (groupId: string, el: HTMLDivElement | null) => void;
+  forceCloseMenu?: number;
+  onContextMenuOpen?: () => void;
   children: React.ReactNode;
 }
 
@@ -22,9 +30,17 @@ interface ContextMenuPos {
 export default function FolderGroup({
   group,
   count,
+  hasRunning,
+  hasStopped,
   onDelete,
   onRename,
   onToggleCollapsed,
+  onStartAll,
+  onStopAll,
+  isDragOver,
+  registerRef,
+  forceCloseMenu,
+  onContextMenuOpen,
   children,
 }: FolderGroupProps) {
   const [showConfirm, setShowConfirm] = useState(false);
@@ -35,11 +51,25 @@ export default function FolderGroup({
 
   const isOpen = !group.collapsed;
 
+  // Close menu when parent signals (another menu opened elsewhere)
+  const prevCloseRef = useRef(forceCloseMenu);
+  useEffect(() => {
+    if (forceCloseMenu !== undefined && forceCloseMenu !== prevCloseRef.current) {
+      setContextMenu(null);
+    }
+    prevCloseRef.current = forceCloseMenu;
+  }, [forceCloseMenu]);
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY });
-  }, []);
+    const pos = { x: e.clientX, y: e.clientY };
+    onContextMenuOpen?.();
+    // Defer so the force-close effect from onContextMenuOpen settles first
+    requestAnimationFrame(() => {
+      setContextMenu(pos);
+    });
+  }, [onContextMenuOpen]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -70,9 +100,11 @@ export default function FolderGroup({
   return (
     <div className={styles.group}>
       <div
-        className={styles.header}
+        className={`${styles.header} ${isDragOver ? styles.headerDragOver : ""}`}
         onClick={() => onToggleCollapsed(group.id)}
         onContextMenu={handleContextMenu}
+        data-group-id={group.id}
+        ref={(el) => registerRef?.(group.id, el)}
       >
         <svg
           className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`}
@@ -106,6 +138,30 @@ export default function FolderGroup({
           <span className={styles.name}>{group.name}</span>
         )}
         <span className={styles.count}>{count}</span>
+        <div className={styles.groupActions} onClick={(e) => e.stopPropagation()}>
+          {hasStopped && (
+            <button
+              className={styles.startAllButton}
+              onClick={onStartAll}
+              title="Start all processes"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
+                <polygon points="2,0 14,7 2,14" />
+              </svg>
+            </button>
+          )}
+          {hasRunning && (
+            <button
+              className={styles.stopAllButton}
+              onClick={onStopAll}
+              title="Stop all processes"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
+                <rect x="1" y="1" width="12" height="12" rx="1" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {isOpen && (

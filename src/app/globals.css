@@ -13,6 +13,7 @@
   --danger-hover: #dc2626;
   --success: #22c55e;
   --success-hover: #16a34a;
+  --warning: #f59e0b;
   --badge-bg: #dbeafe;
   --badge-text: #1e40af;
   --modal-overlay: rgba(0, 0, 0, 0.5);
@@ -37,6 +38,7 @@
   --danger-hover: #ef4444;
   --success: #4ade80;
   --success-hover: #22c55e;
+  --warning: #fbbf24;
   --badge-bg: #1e3a5f;
   --badge-text: #93c5fd;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);

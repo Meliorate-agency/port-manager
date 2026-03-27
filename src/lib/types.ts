@@ -1,3 +1,5 @@
+export type ProcessType = "Command" | "DockerCompose";
+
 export interface SavedProcess {
   id: string;
   name: string;
@@ -5,6 +7,8 @@ export interface SavedProcess {
   directory: string;
   group_id: string | null;
   last_ports: number[];
+  process_type: ProcessType;
+  compose_file: string | null;
 }
 
 export interface ProcessGroup {

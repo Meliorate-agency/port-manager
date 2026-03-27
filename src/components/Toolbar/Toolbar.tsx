@@ -83,9 +83,8 @@ export default function Toolbar({
           strokeWidth="2"
           className={refreshing ? styles.spinning : ""}
         >
-          <polyline points="23 4 23 10 17 10" />
-          <polyline points="1 20 1 14 7 14" />
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          <path d="M21 12a9 9 0 1 1-9-9" />
+          <polyline points="21 3 21 9 15 9" />
         </svg>
       </button>
 

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::models::{AppConfig, SavedProcess};
+use crate::models::{AppConfig, ProcessType, SavedProcess};
 
 pub fn load_config(path: &Path) -> AppConfig {
     let mut config = match fs::read_to_string(path) {
@@ -24,6 +24,8 @@ pub fn load_config(path: &Path) -> AppConfig {
                     .to_string(),
                 group_id: None,
                 last_ports: vec![9090],
+                process_type: ProcessType::Command,
+                compose_file: None,
             },
         );
         // Save the updated config so it persists

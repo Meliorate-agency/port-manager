@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use tauri::State;
 
 use crate::config;
-use crate::models::{AppConfig, PortResources, ProcessResources, ProcessStatus, RunningProcess, SystemPortInfo};
+use crate::models::{AppConfig, PortResources, ProcessResources, ProcessStatus, ProcessType, RunningProcess, SystemPortInfo};
 use crate::port_scanner;
 use crate::process_manager::ProcessManager;
 
@@ -34,11 +34,39 @@ pub fn start_process(id: String, state: State<'_, AppState>) -> Result<u32, Stri
 
     let command = saved.command.clone();
     let directory = saved.directory.clone();
+    let process_type = saved.process_type.clone();
+    let compose_file = saved.compose_file.clone();
     drop(config);
 
-    state
-        .process_manager
-        .spawn_process(&id, &command, &directory)
+    match process_type {
+        ProcessType::DockerCompose => {
+            let compose_file = compose_file.ok_or("Docker Compose process missing compose_file")?;
+            // Spawn docker compose up -d
+            let cmd = format!("docker compose -f {} up -d", compose_file);
+            let pid = state
+                .process_manager
+                .spawn_process(&id, &cmd, &directory)?;
+            // Mark the handle as docker so status polling uses docker compose ps
+            {
+                let mut processes = state
+                    .process_manager
+                    .processes
+                    .lock()
+                    .map_err(|e| format!("Lock error: {}", e))?;
+                if let Some(handle) = processes.get_mut(&id) {
+                    handle.is_docker = true;
+                    handle.compose_file = Some(compose_file);
+                    handle.compose_directory = Some(directory);
+                }
+            }
+            Ok(pid)
+        }
+        ProcessType::Command => {
+            state
+                .process_manager
+                .spawn_process(&id, &command, &directory)
+        }
+    }
 }
 
 #[tauri::command]
@@ -51,8 +79,26 @@ pub fn kill_system_process(pid: u32) -> Result<(), String> {
     crate::process_manager::kill_process_tree(pid)
 }
 
+fn validate_no_shell_metacharacters(value: &str, field_name: &str) -> Result<(), String> {
+    const DANGEROUS: &[char] = &['&', '|', ';', '$', '`', '\'', '"', '<', '>', '(', ')', '{', '}', '\n', '\r'];
+    if value.chars().any(|c| DANGEROUS.contains(&c)) {
+        return Err(format!("{} contains invalid characters", field_name));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn save_config(config: AppConfig, state: State<'_, AppState>) -> Result<(), String> {
+    // Validate inputs before saving
+    for p in &config.processes {
+        if p.id == "port-manager-self" {
+            continue;
+        }
+        if let Some(ref compose_file) = p.compose_file {
+            validate_no_shell_metacharacters(compose_file, "Compose file path")?;
+        }
+    }
+
     let mut current = state
         .config
         .lock()
@@ -82,18 +128,128 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
     let mut dead_ids = Vec::new();
     let mut ports_to_save: Vec<(String, Vec<u16>)> = Vec::new();
 
-    for (id, handle) in processes.iter_mut() {
-        let mut sys = sysinfo::System::new();
-        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    // Pre-fetch all listening ports for fallback detection (e.g. docker compose -d)
+    let all_listening = port_scanner::get_all_listening_ports();
 
+    // Snapshot last_ports from config for orphaned process detection
+    let last_ports_map: std::collections::HashMap<String, Vec<u16>> = state.config.lock()
+        .ok()
+        .map(|cfg| cfg.processes.iter().map(|p| (p.id.clone(), p.last_ports.clone())).collect())
+        .unwrap_or_default();
+
+    // Create system snapshot once for all PID checks
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+    for (id, handle) in processes.iter_mut() {
+        if handle.is_docker {
+            // Docker Compose process — query docker compose ps directly
+            if let (Some(compose_file), Some(compose_dir)) =
+                (&handle.compose_file, &handle.compose_directory)
+            {
+                let containers =
+                    crate::docker::get_compose_status(compose_file, compose_dir);
+                let running_containers: Vec<_> = containers
+                    .iter()
+                    .filter(|c| c.state == "running")
+                    .collect();
+
+                if !running_containers.is_empty() {
+                    let mut ports: Vec<u16> = Vec::new();
+                    for c in &running_containers {
+                        for &p in &c.ports {
+                            if !ports.contains(&p) {
+                                ports.push(p);
+                            }
+                        }
+                    }
+                    handle.ports = ports.clone();
+                    handle.status = ProcessStatus::Running;
+                    if !ports.is_empty() {
+                        ports_to_save.push((id.clone(), ports.clone()));
+                    }
+                    results.push(RunningProcess {
+                        id: id.clone(),
+                        pid: 0,
+                        status: ProcessStatus::Running,
+                        ports,
+                    });
+                } else {
+                    // No running containers — check grace period
+                    let elapsed = handle.started_at.elapsed().as_secs();
+                    if elapsed < 90 {
+                        handle.status = ProcessStatus::Starting;
+                        results.push(RunningProcess {
+                            id: id.clone(),
+                            pid: 0,
+                            status: ProcessStatus::Starting,
+                            ports: Vec::new(),
+                        });
+                    } else {
+                        dead_ids.push(id.clone());
+                        results.push(RunningProcess {
+                            id: id.clone(),
+                            pid: 0,
+                            status: ProcessStatus::Stopped,
+                            ports: Vec::new(),
+                        });
+                    }
+                }
+            } else {
+                dead_ids.push(id.clone());
+            }
+            continue;
+        }
+
+        // Regular command process — PID-based detection
         if sys.process(sysinfo::Pid::from_u32(handle.pid)).is_none() {
-            dead_ids.push(id.clone());
-            results.push(RunningProcess {
-                id: id.clone(),
-                pid: handle.pid,
-                status: ProcessStatus::Stopped,
-                ports: Vec::new(),
-            });
+            // Process PID is dead — check if its expected ports are still listening.
+            let mut expected_ports: Vec<u16> = handle.ports.clone();
+            if let Some(config_ports) = last_ports_map.get(id) {
+                for p in config_ports {
+                    if !expected_ports.contains(p) {
+                        expected_ports.push(*p);
+                    }
+                }
+            }
+
+            let still_active: Vec<u16> = expected_ports.iter()
+                .filter(|port| {
+                    all_listening.iter().any(|lp| lp.local_port == **port && lp.state == "Listen")
+                })
+                .copied()
+                .collect();
+
+            if !still_active.is_empty() {
+                handle.ports = still_active.clone();
+                handle.status = ProcessStatus::Running;
+                ports_to_save.push((id.clone(), still_active.clone()));
+                results.push(RunningProcess {
+                    id: id.clone(),
+                    pid: handle.pid,
+                    status: ProcessStatus::Running,
+                    ports: still_active,
+                });
+            } else {
+                let elapsed = handle.started_at.elapsed().as_secs();
+                if elapsed < 90 {
+                    handle.status = ProcessStatus::Starting;
+                    results.push(RunningProcess {
+                        id: id.clone(),
+                        pid: handle.pid,
+                        status: ProcessStatus::Starting,
+                        ports: Vec::new(),
+                    });
+                } else {
+                    dead_ids.push(id.clone());
+                    results.push(RunningProcess {
+                        id: id.clone(),
+                        pid: handle.pid,
+                        status: ProcessStatus::Stopped,
+                        ports: Vec::new(),
+                    });
+                }
+            }
             continue;
         }
 
@@ -104,7 +260,6 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
             handle.status = ProcessStatus::Running;
         }
 
-        // Save discovered ports for persistence
         if !ports.is_empty() {
             ports_to_save.push((id.clone(), ports.clone()));
         }
@@ -136,7 +291,9 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
                 }
             }
             if changed {
-                let _ = config::save_config(&state.config_path, &cfg);
+                if let Err(e) = config::save_config(&state.config_path, &cfg) {
+                    eprintln!("Failed to persist port config: {}", e);
+                }
             }
         }
     }

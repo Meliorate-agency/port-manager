@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ProcessGroup } from "@/lib/types";
+import type { ProcessGroup, ProcessType } from "@/lib/types";
 import styles from "./AddProcessModal.module.css";
 
 interface AddProcessModalProps {
@@ -11,6 +11,8 @@ interface AddProcessModalProps {
     command: string;
     directory: string;
     group_id: string | null;
+    process_type?: ProcessType;
+    compose_file?: string | null;
   }) => Promise<void>;
   onClose: () => void;
 }
@@ -24,21 +26,32 @@ export default function AddProcessModal({
   const [command, setCommand] = useState("");
   const [directory, setDirectory] = useState("");
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [processType, setProcessType] = useState<ProcessType>("Command");
+  const [composeFile, setComposeFile] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canSave = name.trim() && command.trim() && directory.trim();
+  const isDocker = processType === "DockerCompose";
+  const canSave = name.trim() && directory.trim() && (isDocker ? composeFile.trim() : command.trim());
 
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
+    setError(null);
     try {
       await onSave({
         name: name.trim(),
-        command: command.trim(),
+        command: isDocker
+          ? `docker compose -f ${composeFile.trim()} up -d`
+          : command.trim(),
         directory: directory.trim(),
         group_id: groupId,
+        process_type: processType,
+        compose_file: isDocker ? composeFile.trim() : null,
       });
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -56,6 +69,18 @@ export default function AddProcessModal({
         <div className={styles.title}>Add Process</div>
 
         <div className={styles.field}>
+          <label className={styles.label}>Type</label>
+          <select
+            className={styles.select}
+            value={processType}
+            onChange={(e) => setProcessType(e.target.value as ProcessType)}
+          >
+            <option value="Command">Command</option>
+            <option value="DockerCompose">Docker Compose</option>
+          </select>
+        </div>
+
+        <div className={styles.field}>
           <label className={styles.label}>Name</label>
           <input
             className={styles.input}
@@ -68,17 +93,31 @@ export default function AddProcessModal({
           />
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>Command</label>
-          <input
-            className={styles.input}
-            type="text"
-            value={command}
-            onChange={(e) => setCommand(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="npm run dev"
-          />
-        </div>
+        {isDocker ? (
+          <div className={styles.field}>
+            <label className={styles.label}>Compose File</label>
+            <input
+              className={styles.input}
+              type="text"
+              value={composeFile}
+              onChange={(e) => setComposeFile(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="docker/docker-compose.yml"
+            />
+          </div>
+        ) : (
+          <div className={styles.field}>
+            <label className={styles.label}>Command</label>
+            <input
+              className={styles.input}
+              type="text"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="npm run dev"
+            />
+          </div>
+        )}
 
         <div className={styles.field}>
           <label className={styles.label}>Directory</label>
@@ -107,6 +146,8 @@ export default function AddProcessModal({
             ))}
           </select>
         </div>
+
+        {error && <div className={styles.error}>{error}</div>}
 
         <div className={styles.actions}>
           <button className={styles.cancelButton} onClick={onClose}>
