@@ -41,6 +41,9 @@ export function useProcesses() {
         last_ports: p.last_ports || [],
         process_type: p.process_type || "Command" as const,
         compose_file: p.compose_file || null,
+        prod_command: p.prod_command || null,
+        prod_directory: p.prod_directory || null,
+        prod_compose_file: p.prod_compose_file || null,
       }));
       setSavedProcesses(processes);
       setGroups(config.groups);
@@ -57,8 +60,27 @@ export function useProcesses() {
 
     intervalRef.current = setInterval(async () => {
       try {
-        const status = await commands.getRunningStatus();
+        const [config, status] = await Promise.all([
+          commands.loadConfig(),
+          commands.getRunningStatus(),
+        ]);
         setRunningStatus(status);
+
+        // Sync last_ports from backend config into frontend state
+        // (backend saves last_ports while processes run; frontend needs to pick them up)
+        const portMap = new Map(config.processes.map((p) => [p.id, p.last_ports || []]));
+        setSavedProcesses((prev) => {
+          let changed = false;
+          const next = prev.map((p) => {
+            const updated = portMap.get(p.id);
+            if (updated && JSON.stringify(updated) !== JSON.stringify(p.last_ports)) {
+              changed = true;
+              return { ...p, last_ports: updated };
+            }
+            return p;
+          });
+          return changed ? next : prev;
+        });
       } catch (err) {
         console.error("Polling error:", err);
       }
@@ -136,7 +158,7 @@ export function useProcesses() {
   );
 
   const addProcess = useCallback(
-    async (data: Omit<SavedProcess, "id" | "last_ports" | "process_type" | "compose_file"> & { process_type?: SavedProcess["process_type"]; compose_file?: string | null }) => {
+    async (data: Omit<SavedProcess, "id" | "last_ports" | "process_type" | "compose_file" | "prod_command" | "prod_directory" | "prod_compose_file" | "container_id"> & { process_type?: SavedProcess["process_type"]; compose_file?: string | null; prod_command?: string | null; prod_directory?: string | null; prod_compose_file?: string | null; container_id?: string | null }) => {
       const id = crypto.randomUUID();
       const newProcess: SavedProcess = {
         ...data,
@@ -144,6 +166,10 @@ export function useProcesses() {
         last_ports: [],
         process_type: data.process_type || "Command",
         compose_file: data.compose_file || null,
+        prod_command: data.prod_command || null,
+        prod_directory: data.prod_directory || null,
+        prod_compose_file: data.prod_compose_file || null,
+        container_id: data.container_id || null,
       };
       const updated = [...savedProcessesRef.current, newProcess];
       await saveAndUpdateConfig(updated, groupsRef.current);
@@ -217,9 +243,9 @@ export function useProcesses() {
     [saveAndUpdateConfig],
   );
 
-  const startProcess = useCallback(async (id: string) => {
+  const startProcess = useCallback(async (id: string, mode?: string) => {
     try {
-      await commands.startProcess(id);
+      await commands.startProcess(id, mode);
     } catch (err) {
       console.error("Failed to start process:", err);
     } finally {
@@ -243,10 +269,10 @@ export function useProcesses() {
     }
   }, []);
 
-  const restartProcess = useCallback(async (id: string) => {
+  const restartProcess = useCallback(async (id: string, mode?: string) => {
     try {
       await commands.stopProcess(id);
-      await commands.startProcess(id);
+      await commands.startProcess(id, mode);
     } catch (err) {
       console.error("Failed to restart process:", err);
     } finally {

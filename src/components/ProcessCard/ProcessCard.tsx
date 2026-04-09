@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { SavedProcess, ProcessResources, RunningProcess } from "@/lib/types";
+import { useState, useRef, useEffect } from "react";
+import type { SavedProcess, ProcessResources, RunningProcess, RunMode } from "@/lib/types";
 import ConfirmDialog from "@/components/ConfirmDialog/ConfirmDialog";
 import styles from "./ProcessCard.module.css";
 
@@ -9,9 +9,10 @@ interface ProcessCardProps {
   process: SavedProcess;
   status?: RunningProcess;
   resources?: ProcessResources;
-  onStart: (id: string) => Promise<void>;
+  isGrouped?: boolean;
+  onStart: (id: string, mode?: string) => Promise<void>;
   onStop: (id: string) => Promise<void>;
-  onRestart: (id: string) => Promise<void>;
+  onRestart: (id: string, mode?: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onEdit: (process: SavedProcess) => void;
   onContextMenu: (e: React.MouseEvent, processId: string) => void;
@@ -21,12 +22,14 @@ interface ProcessCardProps {
   onGripMouseDown?: (e: React.MouseEvent, processId: string) => void;
   isDragOver?: boolean;
   isDragging?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 export default function ProcessCard({
   process,
   status,
   resources,
+  isGrouped,
   onStart,
   onStop,
   onRestart,
@@ -39,15 +42,45 @@ export default function ProcessCard({
   onGripMouseDown,
   isDragOver,
   isDragging,
+  onSelect,
 }: ProcessCardProps) {
   const [confirmAction, setConfirmAction] = useState<"stop" | "delete" | null>(null);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<RunMode>("Dev");
+  const [dotsMenuOpen, setDotsMenuOpen] = useState(false);
+  const dotsRef = useRef<HTMLButtonElement>(null);
+  const [dotsPos, setDotsPos] = useState<{ x: number; y: number } | null>(null);
   const isSelf = process.id === "port-manager-self";
   const isRunning = isSelf || (status && (status.status === "Running" || status.status === "Starting"));
   const isStarting = !isSelf && status?.status === "Starting";
 
+  // Determine if this process has prod config
+  const hasProdConfig = !!(process.prod_command || process.prod_directory || process.prod_compose_file);
+
+  // Current running mode from status
+  const currentRunMode: RunMode = status?.run_mode || "Dev";
+
+  // Which mode to use for display: running mode if active, selected mode if stopped
+  const displayMode: RunMode = isRunning && !isSelf ? currentRunMode : selectedMode;
+
+  // Resolve the displayed command and directory based on the active mode
+  const displayCommand = (() => {
+    if (process.process_type === "DockerContainer") {
+      return process.container_id || process.command;
+    }
+    if (process.process_type === "DockerCompose") {
+      if (displayMode === "Prod" && process.prod_compose_file) return process.prod_compose_file;
+      return process.compose_file || process.command;
+    }
+    if (displayMode === "Prod" && process.prod_command) return process.prod_command;
+    return process.command;
+  })();
+
+  const displayDirectory = (displayMode === "Prod" && process.prod_directory)
+    ? process.prod_directory
+    : process.directory;
+
   // Show live ports if running, otherwise show saved last_ports
-  // For self process, always show last_ports since it's not tracked in process manager
   const displayPorts = isSelf
     ? process.last_ports ?? []
     : isRunning
@@ -69,11 +102,34 @@ export default function ProcessCard({
   const handleRestart = async () => {
     setIsRestarting(true);
     try {
-      await onRestart(process.id);
+      await onRestart(process.id, hasProdConfig ? selectedMode : undefined);
     } finally {
       setTimeout(() => setIsRestarting(false), 1500);
     }
   };
+
+  const handleStart = async () => {
+    await onStart(process.id, hasProdConfig ? selectedMode : undefined);
+  };
+
+  const handleDotsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (dotsMenuOpen) {
+      setDotsMenuOpen(false);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setDotsPos({ x: rect.right, y: rect.bottom + 4 });
+    setDotsMenuOpen(true);
+  };
+
+  // Close dots menu on outside click
+  useEffect(() => {
+    if (!dotsMenuOpen) return;
+    const close = () => setDotsMenuOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [dotsMenuOpen]);
 
   const handleConfirm = async () => {
     if (confirmAction === "stop") {
@@ -87,18 +143,161 @@ export default function ProcessCard({
     setConfirmAction(null);
   };
 
+  // ===== Grouped: compact service row inside a project card =====
+  if (isGrouped && !isSelf) {
+    return (
+      <>
+        <div
+          data-process-id={process.id}
+          className={`${styles.serviceRow} ${isRestarting ? styles.restarting : ""} ${isDragOver ? styles.dragOver : ""} ${isDragging ? styles.dragging : ""}`}
+          onClick={() => onSelect?.(process.id)}
+        >
+          {onGripMouseDown && (
+            <div
+              className={styles.dragHandle}
+              title="Drag to reorder"
+              onMouseDown={(e) => onGripMouseDown(e, process.id)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+                <circle cx="3.5" cy="2" r="1.1" />
+                <circle cx="8.5" cy="2" r="1.1" />
+                <circle cx="3.5" cy="6" r="1.1" />
+                <circle cx="8.5" cy="6" r="1.1" />
+                <circle cx="3.5" cy="10" r="1.1" />
+                <circle cx="8.5" cy="10" r="1.1" />
+              </svg>
+            </div>
+          )}
+          <div className={`${styles.statusDot} ${statusClass}`} />
+          <div className={styles.serviceInfo}>
+            <div className={styles.serviceNameRow}>
+              {(process.process_type === "DockerCompose" || process.process_type === "DockerContainer") && (
+                <svg className={styles.dockerIconSmall} viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13.98 11.08h2.12a.19.19 0 0 0 .19-.19V9.01a.19.19 0 0 0-.19-.19h-2.12a.19.19 0 0 0-.19.19v1.88c0 .1.09.19.19.19m-2.95-5.43h2.12a.19.19 0 0 0 .19-.19V3.58a.19.19 0 0 0-.19-.19h-2.12a.19.19 0 0 0-.19.19v1.88c0 .11.09.19.19.19m0 2.71h2.12a.19.19 0 0 0 .19-.19V6.29a.19.19 0 0 0-.19-.19h-2.12a.19.19 0 0 0-.19.19v1.88c0 .11.09.19.19.19m-2.93 0h2.12a.19.19 0 0 0 .19-.19V6.29a.19.19 0 0 0-.19-.19H8.1a.19.19 0 0 0-.19.19v1.88c0 .11.08.19.19.19m-2.96 0h2.12a.19.19 0 0 0 .19-.19V6.29a.19.19 0 0 0-.19-.19H5.14a.19.19 0 0 0-.19.19v1.88c0 .11.09.19.19.19m5.89 2.72h2.12a.19.19 0 0 0 .19-.19V9.01a.19.19 0 0 0-.19-.19h-2.12a.19.19 0 0 0-.19.19v1.88c0 .1.09.19.19.19m-2.93 0h2.12a.19.19 0 0 0 .19-.19V9.01a.19.19 0 0 0-.19-.19H8.1a.19.19 0 0 0-.19.19v1.88c0 .1.08.19.19.19m-2.96 0h2.12a.19.19 0 0 0 .19-.19V9.01a.19.19 0 0 0-.19-.19H5.14a.19.19 0 0 0-.19.19v1.88c0 .1.09.19.19.19m-2.92 0h2.12a.19.19 0 0 0 .19-.19V9.01a.19.19 0 0 0-.19-.19H2.22a.19.19 0 0 0-.19.19v1.88c0 .1.08.19.19.19M23.7 11.59c-.23-.16-.53-.22-.83-.22-.09 0-.19.01-.29.03a3.04 3.04 0 0 0-1.49-1.41l-.3-.16-.17.3a3.3 3.3 0 0 0-.42 1.27c-.07.51-.01.99.19 1.41-.28.16-.73.32-1.36.32H.78l-.08.48c-.12.78-.12 3.21 1.05 5.1 .89 1.44 2.24 2.17 4.01 2.17.44 0 .91-.04 1.41-.13 1.8-.34 3.41-1.08 4.72-2.27a9.02 9.02 0 0 0 2.32-3.53h.2c1.24 0 2-.51 2.43-.94.29-.27.5-.59.68-.94l.1-.19-.17-.12z" />
+                </svg>
+              )}
+              <span className={styles.serviceName}>{process.name}</span>
+              {isRunning && hasProdConfig && (
+                <span className={`${styles.modeBadge} ${currentRunMode === "Prod" ? styles.modeBadgeProd : styles.modeBadgeDev}`}>
+                  {currentRunMode === "Prod" ? "PROD" : "DEV"}
+                </span>
+              )}
+            </div>
+            {/* Port badges under the name */}
+            {displayPorts.length > 0 && (
+              <div className={styles.servicePorts}>
+                {displayPorts.map((port) => {
+                  const portRes = isRunning
+                    ? resources?.port_resources.find((r) => r.port === port)
+                    : undefined;
+                  return (
+                    <span
+                      key={port}
+                      className={`${styles.servicePort} ${!isRunning ? styles.servicePortDimmed : ""}`}
+                      title={portRes ? `${portRes.cpu_usage.toFixed(1)}% CPU / ${formatMemory(portRes.memory_bytes)}` : undefined}
+                    >
+                      :{port}
+                      {portRes && (
+                        <span className={styles.servicePortStats}>
+                          {portRes.cpu_usage.toFixed(1)}%
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {/* 3-dot menu */}
+          <button
+            ref={dotsRef}
+            className={styles.dotsBtn}
+            onClick={handleDotsClick}
+            title="Actions"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 3-dot dropdown menu */}
+        {dotsMenuOpen && dotsPos && (
+          <div className={styles.dotsMenu} style={{ left: dotsPos.x, top: dotsPos.y, position: "fixed" }} onClick={(e) => e.stopPropagation()}>
+            {isRunning ? (
+              <>
+                <button className={`${styles.dotsMenuItem} ${styles.dotsMenuWarning}`} onClick={() => { setDotsMenuOpen(false); handleRestart(); }} disabled={isRestarting}>
+                  <svg className={styles.dotsMenuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  Restart
+                </button>
+                <button className={`${styles.dotsMenuItem} ${styles.dotsMenuDanger}`} onClick={() => { setDotsMenuOpen(false); setConfirmAction("stop"); }}>
+                  <svg className={styles.dotsMenuIcon} viewBox="0 0 14 14" fill="currentColor">
+                    <rect x="1" y="1" width="12" height="12" rx="1" />
+                  </svg>
+                  Stop
+                </button>
+              </>
+            ) : (
+              <button className={`${styles.dotsMenuItem} ${styles.dotsMenuSuccess}`} onClick={() => { setDotsMenuOpen(false); handleStart(); }}>
+                <svg className={styles.dotsMenuIcon} viewBox="0 0 14 14" fill="currentColor">
+                  <polygon points="2,0 14,7 2,14" />
+                </svg>
+                Start
+              </button>
+            )}
+            <button className={styles.dotsMenuItem} onClick={() => { setDotsMenuOpen(false); onEdit(process); }}>
+              <svg className={styles.dotsMenuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Edit
+            </button>
+            <button className={`${styles.dotsMenuItem} ${styles.dotsMenuDanger}`} onClick={() => { setDotsMenuOpen(false); setConfirmAction("delete"); }}>
+              <svg className={styles.dotsMenuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Delete
+            </button>
+          </div>
+        )}
+
+        {confirmAction && (
+          <ConfirmDialog
+            title={confirmAction === "stop" ? "Stop Service" : "Remove Service"}
+            message={
+              confirmAction === "stop"
+                ? `Stop "${process.name}"? This will kill the process and all its children.`
+                : `Remove "${process.name}" from your list?${isRunning ? " The running process will be stopped." : ""}`
+            }
+            onConfirm={handleConfirm}
+            onCancel={() => setConfirmAction(null)}
+          />
+        )}
+      </>
+    );
+  }
+
+  // ===== Standalone card (self process / ungrouped) =====
   return (
     <>
       <div
         data-process-id={process.id}
         className={`${styles.card} ${isSelf ? styles.selfCard : ""} ${isRestarting ? styles.restarting : ""} ${isDragOver ? styles.dragOver : ""} ${isDragging ? styles.dragging : ""}`}
         onContextMenu={(e) => !isSelf && onContextMenu(e, process.id)}
+        onClick={() => !isSelf && onSelect?.(process.id)}
       >
         {!isSelf && onGripMouseDown && (
           <div
             className={styles.dragHandle}
             title="Drag to reorder"
             onMouseDown={(e) => onGripMouseDown(e, process.id)}
+            onClick={(e) => e.stopPropagation()}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <circle cx="3.5" cy="2" r="1.2" />
@@ -119,15 +318,16 @@ export default function ProcessCard({
               </svg>
             )}
             {process.name}
+            {isRunning && !isSelf && hasProdConfig && (
+              <span className={`${styles.modeBadge} ${currentRunMode === "Prod" ? styles.modeBadgeProd : styles.modeBadgeDev}`}>
+                {currentRunMode === "Prod" ? "PROD" : "DEV"}
+              </span>
+            )}
           </div>
           {!isSelf && (
             <div className={styles.meta}>
-              <span className={styles.command}>
-                {process.process_type === "DockerCompose" && process.compose_file
-                  ? process.compose_file
-                  : process.command}
-              </span>
-              <span className={styles.directory}>{process.directory}</span>
+              <span className={styles.command}>{displayCommand}</span>
+              <span className={styles.directory}>{displayDirectory}</span>
             </div>
           )}
         </div>
@@ -154,46 +354,34 @@ export default function ProcessCard({
           </div>
         )}
         {!isSelf && (
-          <div className={styles.actions}>
+          <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
+            {hasProdConfig && !isRunning && (
+              <div className={styles.modeToggle}>
+                <button className={`${styles.modeButton} ${selectedMode === "Dev" ? styles.modeButtonActive : ""}`} onClick={() => setSelectedMode("Dev")} title="Development mode">DEV</button>
+                <button className={`${styles.modeButton} ${selectedMode === "Prod" ? styles.modeButtonActiveProd : ""}`} onClick={() => setSelectedMode("Prod")} title="Production mode">PROD</button>
+              </div>
+            )}
             {isRunning ? (
               <>
-                <button
-                  className={styles.restartButton}
-                  onClick={handleRestart}
-                  disabled={isRestarting}
-                  title="Restart process"
-                >
+                <button className={styles.restartButton} onClick={handleRestart} disabled={isRestarting} title="Restart process">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M1 4v6h6" />
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    <path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                   </svg>
                 </button>
-                <button
-                  className={styles.stopButton}
-                  onClick={() => setConfirmAction("stop")}
-                  title="Stop process"
-                >
+                <button className={styles.stopButton} onClick={() => setConfirmAction("stop")} title="Stop process">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                     <rect x="1" y="1" width="12" height="12" rx="1" />
                   </svg>
                 </button>
               </>
             ) : (
-              <button
-                className={styles.playButton}
-                onClick={() => onStart(process.id)}
-                title="Start process"
-              >
+              <button className={styles.playButton} onClick={handleStart} title="Start process">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                   <polygon points="2,0 14,7 2,14" />
                 </svg>
               </button>
             )}
-            <button
-              className={styles.deleteButton}
-              onClick={() => setConfirmAction("delete")}
-              title="Remove process"
-            >
+            <button className={styles.deleteButton} onClick={() => setConfirmAction("delete")} title="Remove process">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -204,31 +392,15 @@ export default function ProcessCard({
       </div>
 
       {contextMenuOpen && contextMenuPos && (
-        <div
-          className={styles.contextMenu}
-          style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className={styles.contextMenuItem}
-            onClick={() => {
-              onEdit(process);
-              onCloseContextMenu();
-            }}
-          >
+        <div className={styles.contextMenu} style={{ left: contextMenuPos.x, top: contextMenuPos.y }} onClick={(e) => e.stopPropagation()}>
+          <button className={styles.contextMenuItem} onClick={() => { onEdit(process); onCloseContextMenu(); }}>
             <svg className={styles.contextMenuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
             Edit
           </button>
-          <button
-            className={`${styles.contextMenuItem} ${styles.contextMenuDanger}`}
-            onClick={() => {
-              setConfirmAction("delete");
-              onCloseContextMenu();
-            }}
-          >
+          <button className={`${styles.contextMenuItem} ${styles.contextMenuDanger}`} onClick={() => { setConfirmAction("delete"); onCloseContextMenu(); }}>
             <svg className={styles.contextMenuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

@@ -1,0 +1,70 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.installButton {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.installButton:hover {
+  background: var(--accent-hover);
+}
+
+.installButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dismissButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.dismissButton:hover {
+  color: var(--text-primary);
+}

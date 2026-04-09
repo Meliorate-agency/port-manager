@@ -5,6 +5,13 @@
   background: var(--bg-secondary);
 }
 
+.contentWrapper {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .loading {
   display: flex;
   align-items: center;

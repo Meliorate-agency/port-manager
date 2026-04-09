@@ -106,3 +106,40 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Production overrides section */
+.prodSection {
+  margin-bottom: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.prodToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.prodToggle:hover {
+  color: var(--text-primary);
+}
+
+.prodHint {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.prodFields {
+  margin-top: 12px;
+  padding-left: 18px;
+  border-left: 2px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}

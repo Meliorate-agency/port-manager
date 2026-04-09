@@ -1,4 +1,5 @@
-export type ProcessType = "Command" | "DockerCompose";
+export type ProcessType = "Command" | "DockerCompose" | "DockerContainer";
+export type RunMode = "Dev" | "Prod";
 
 export interface SavedProcess {
   id: string;
@@ -9,6 +10,10 @@ export interface SavedProcess {
   last_ports: number[];
   process_type: ProcessType;
   compose_file: string | null;
+  prod_command: string | null;
+  prod_directory: string | null;
+  prod_compose_file: string | null;
+  container_id: string | null;
 }
 
 export interface ProcessGroup {
@@ -27,6 +32,7 @@ export interface RunningProcess {
   pid: number;
   status: "Running" | "Stopped" | "Starting";
   ports: number[];
+  run_mode: RunMode;
 }
 
 export interface PortResources {
@@ -48,4 +54,9 @@ export interface SystemPortInfo {
   local_addr: string;
   local_port: number;
   state: string;
+}
+
+export interface ProcessLogResult {
+  lines: string[];
+  offset: number;
 }

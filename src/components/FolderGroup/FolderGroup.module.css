@@ -1,13 +1,29 @@
-.group {
-  margin-bottom: 8px;
+/* ===== Project Card ===== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  height: fit-content;
 }
 
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.cardDragOver {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ===== Card Header ===== */
 .header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius);
+  gap: 10px;
+  padding: 12px 14px;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
@@ -17,11 +33,117 @@
   background: var(--bg-hover);
 }
 
-.headerDragOver {
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-  border: 1px dashed var(--accent);
+/* Logo placeholder */
+.logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, var(--bg-secondary)), color-mix(in srgb, var(--accent) 8%, var(--bg-secondary)));
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
+.logoInitials {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+
+/* Header text */
+.headerInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.renameInput {
+  font-weight: 600;
+  font-size: 15px;
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.runningDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+}
+
+/* Header action buttons */
+.headerActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.startAllButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+  color: var(--success);
+  transition: all 0.15s;
+}
+
+.startAllButton:hover {
+  background: color-mix(in srgb, var(--success) 25%, transparent);
+  border-color: var(--success);
+}
+
+.stopAllButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger);
+  transition: all 0.15s;
+}
+
+.stopAllButton:hover {
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+  border-color: var(--danger);
+}
+
+/* Chevron */
 .chevron {
   width: 16px;
   height: 16px;
@@ -34,92 +156,23 @@
   transform: rotate(90deg);
 }
 
-.folderIcon {
-  width: 16px;
-  height: 16px;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.name {
-  font-weight: 600;
-  font-size: 13px;
-  flex: 1;
-}
-
-.renameInput {
-  font-weight: 600;
-  font-size: 13px;
-  flex: 1;
-  background: var(--bg-secondary);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 2px 6px;
-  color: var(--text-primary);
-  outline: none;
-}
-
-.count {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.groupActions {
-  display: flex;
-  gap: 4px;
-  margin-left: 4px;
-}
-
-.startAllButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--success) 15%, transparent);
-  border: 1px solid var(--success);
-  color: var(--success);
-  transition: background 0.2s;
-}
-
-.startAllButton:hover {
-  background: color-mix(in srgb, var(--success) 30%, transparent);
-}
-
-.stopAllButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--danger) 15%, transparent);
-  border: 1px solid var(--danger);
-  color: var(--danger);
-  transition: background 0.2s;
-}
-
-.stopAllButton:hover {
-  background: color-mix(in srgb, var(--danger) 30%, transparent);
-}
-
-.children {
-  padding-left: 24px;
+/* ===== Service Rows ===== */
+.services {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
+  border-top: 1px solid var(--border);
 }
 
-.emptyChildren {
-  padding: 12px 24px 12px 48px;
+.emptyServices {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-style: italic;
+  text-align: center;
 }
 
-/* Context menu */
+/* ===== Context Menu ===== */
 .contextMenu {
   position: fixed;
   z-index: 200;
@@ -153,7 +206,7 @@
 }
 
 .contextMenuDanger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 .contextMenuIcon {

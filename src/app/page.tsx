@@ -6,9 +6,11 @@ import { useProcesses } from "@/hooks/useProcesses";
 import type { SavedProcess } from "@/lib/types";
 import Toolbar from "@/components/Toolbar/Toolbar";
 import ProcessList from "@/components/ProcessList/ProcessList";
+import DetailPanel from "@/components/DetailPanel/DetailPanel";
 import AddProcessModal from "@/components/AddProcessModal/AddProcessModal";
 import AddGroupModal from "@/components/AddGroupModal/AddGroupModal";
 import EditProcessModal from "@/components/EditProcessModal/EditProcessModal";
+import UpdateChecker from "@/components/UpdateChecker/UpdateChecker";
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -42,6 +44,11 @@ export default function Home() {
   const [showAddProcess, setShowAddProcess] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [editingProcess, setEditingProcess] = useState<SavedProcess | null>(null);
+  const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
+
+  const selectedProcess = selectedProcessId
+    ? savedProcesses.find((p) => p.id === selectedProcessId) ?? null
+    : null;
 
   if (isLoading) {
     return <div className={styles.loading}>Loading...</div>;
@@ -49,6 +56,7 @@ export default function Home() {
 
   return (
     <div className={styles.main}>
+      <UpdateChecker />
       <Toolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -58,26 +66,40 @@ export default function Home() {
         theme={theme}
         onToggleTheme={toggleTheme}
       />
-      <ProcessList
-        processes={savedProcesses}
-        groups={groups}
-        runningStatus={runningStatus}
-        systemPorts={systemPorts}
-        processResources={processResources}
-        showSystemPorts={showSystemPorts}
-        searchQuery={searchQuery}
-        onStart={startProcess}
-        onStop={stopProcess}
-        onRestart={restartProcess}
-        onReorderProcesses={reorderProcesses}
-        onDeleteProcess={removeProcess}
-        onEditProcess={setEditingProcess}
-        onDeleteGroup={removeGroup}
-        onRenameGroup={renameGroup}
-        onToggleGroupCollapsed={toggleGroupCollapsed}
-        onKillSystem={killSystemProcess}
-        onLoadSystemPorts={fetchSystemPorts}
-      />
+      <div className={styles.contentWrapper}>
+        <ProcessList
+          processes={savedProcesses}
+          groups={groups}
+          runningStatus={runningStatus}
+          systemPorts={systemPorts}
+          processResources={processResources}
+          showSystemPorts={showSystemPorts}
+          searchQuery={searchQuery}
+          onStart={startProcess}
+          onStop={stopProcess}
+          onRestart={restartProcess}
+          onReorderProcesses={reorderProcesses}
+          onDeleteProcess={removeProcess}
+          onEditProcess={setEditingProcess}
+          onDeleteGroup={removeGroup}
+          onRenameGroup={renameGroup}
+          onToggleGroupCollapsed={toggleGroupCollapsed}
+          onKillSystem={killSystemProcess}
+          onLoadSystemPorts={fetchSystemPorts}
+          onSelectProcess={setSelectedProcessId}
+        />
+        {selectedProcess && (
+          <DetailPanel
+            process={selectedProcess}
+            status={runningStatus.find((r) => r.id === selectedProcessId)}
+            resources={processResources.get(selectedProcessId!)}
+            onClose={() => setSelectedProcessId(null)}
+            onStart={startProcess}
+            onStop={stopProcess}
+            onRestart={restartProcess}
+          />
+        )}
+      </div>
       {showAddProcess && (
         <AddProcessModal
           groups={groups}

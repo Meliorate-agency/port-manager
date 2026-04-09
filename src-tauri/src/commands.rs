@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use tauri::State;
 
 use crate::config;
-use crate::models::{AppConfig, PortResources, ProcessResources, ProcessStatus, ProcessType, RunningProcess, SystemPortInfo};
+use crate::models::{AppConfig, PortResources, ProcessLogResult, ProcessResources, ProcessStatus, ProcessType, RunMode, RunningProcess, SystemPortInfo};
 use crate::port_scanner;
 use crate::process_manager::ProcessManager;
 
@@ -20,7 +20,12 @@ pub fn list_system_ports() -> Vec<SystemPortInfo> {
 }
 
 #[tauri::command]
-pub fn start_process(id: String, state: State<'_, AppState>) -> Result<u32, String> {
+pub fn start_process(id: String, mode: Option<String>, state: State<'_, AppState>) -> Result<u32, String> {
+    let run_mode = match mode.as_deref() {
+        Some("Prod") => RunMode::Prod,
+        _ => RunMode::Dev,
+    };
+
     let config = state
         .config
         .lock()
@@ -32,10 +37,24 @@ pub fn start_process(id: String, state: State<'_, AppState>) -> Result<u32, Stri
         .find(|p| p.id == id)
         .ok_or_else(|| "Process not found in config".to_string())?;
 
-    let command = saved.command.clone();
-    let directory = saved.directory.clone();
+    // Resolve command/directory/compose_file based on run mode
+    let command = if run_mode == RunMode::Prod {
+        saved.prod_command.clone().unwrap_or_else(|| saved.command.clone())
+    } else {
+        saved.command.clone()
+    };
+    let directory = if run_mode == RunMode::Prod {
+        saved.prod_directory.clone().unwrap_or_else(|| saved.directory.clone())
+    } else {
+        saved.directory.clone()
+    };
+    let compose_file = if run_mode == RunMode::Prod {
+        saved.prod_compose_file.clone().or_else(|| saved.compose_file.clone())
+    } else {
+        saved.compose_file.clone()
+    };
     let process_type = saved.process_type.clone();
-    let compose_file = saved.compose_file.clone();
+    let container_id = saved.container_id.clone();
     drop(config);
 
     match process_type {
@@ -55,16 +74,65 @@ pub fn start_process(id: String, state: State<'_, AppState>) -> Result<u32, Stri
                     .map_err(|e| format!("Lock error: {}", e))?;
                 if let Some(handle) = processes.get_mut(&id) {
                     handle.is_docker = true;
-                    handle.compose_file = Some(compose_file);
-                    handle.compose_directory = Some(directory);
+                    handle.compose_file = Some(compose_file.clone());
+                    handle.compose_directory = Some(directory.clone());
+                    handle.run_mode = run_mode;
+                }
+            }
+            // Start following docker compose logs in background
+            let _ = state.process_manager.spawn_docker_log_follow(&id, &compose_file, &directory);
+            Ok(pid)
+        }
+        ProcessType::Command => {
+            let pid = state
+                .process_manager
+                .spawn_process(&id, &command, &directory)?;
+            // Store the run mode on the handle
+            {
+                let mut processes = state
+                    .process_manager
+                    .processes
+                    .lock()
+                    .map_err(|e| format!("Lock error: {}", e))?;
+                if let Some(handle) = processes.get_mut(&id) {
+                    handle.run_mode = run_mode;
                 }
             }
             Ok(pid)
         }
-        ProcessType::Command => {
-            state
-                .process_manager
-                .spawn_process(&id, &command, &directory)
+        ProcessType::DockerContainer => {
+            let container_id = container_id
+                .ok_or("Docker Container process missing container_id")?;
+
+            // Start the container
+            crate::docker::start_container(&container_id)?;
+
+            // Create a handle (no spawned child — docker manages the process)
+            let log_buffer = std::sync::Arc::new(crate::process_manager::LogBuffer::new());
+            let handle = crate::process_manager::RunningProcessHandle {
+                pid: 0,
+                child: None,
+                ports: Vec::new(),
+                status: ProcessStatus::Starting,
+                started_at: std::time::Instant::now(),
+                is_docker: true,
+                compose_file: None,
+                compose_directory: None,
+                run_mode,
+                log_buffer: log_buffer.clone(),
+                log_child: None,
+                container_id: Some(container_id.clone()),
+            };
+
+            state.process_manager.processes
+                .lock()
+                .map_err(|e| format!("Lock error: {}", e))?
+                .insert(id.clone(), handle);
+
+            // Spawn docker log follow for this container
+            let _ = state.process_manager.spawn_container_log_follow(&id, &container_id);
+
+            Ok(0)
         }
     }
 }
@@ -142,6 +210,52 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
     sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
     for (id, handle) in processes.iter_mut() {
+        // Docker Container — query individual container by ID/name
+        if let Some(container_id) = &handle.container_id {
+            if let Some(cs) = crate::docker::get_container_status(container_id) {
+                // Always save configured ports (available even when stopped)
+                if !cs.ports.is_empty() {
+                    handle.ports = cs.ports.clone();
+                    ports_to_save.push((id.clone(), cs.ports.clone()));
+                }
+
+                if cs.running {
+                    handle.status = ProcessStatus::Running;
+                    results.push(RunningProcess {
+                        id: id.clone(),
+                        pid: 0,
+                        status: ProcessStatus::Running,
+                        ports: cs.ports,
+                        run_mode: handle.run_mode.clone(),
+                    });
+                } else {
+                    let elapsed = handle.started_at.elapsed().as_secs();
+                    if elapsed < 30 {
+                        handle.status = ProcessStatus::Starting;
+                        results.push(RunningProcess {
+                            id: id.clone(),
+                            pid: 0,
+                            status: ProcessStatus::Starting,
+                            ports: cs.ports,
+                            run_mode: handle.run_mode.clone(),
+                        });
+                    } else {
+                        dead_ids.push(id.clone());
+                        results.push(RunningProcess {
+                            id: id.clone(),
+                            pid: 0,
+                            status: ProcessStatus::Stopped,
+                            ports: cs.ports,
+                            run_mode: handle.run_mode.clone(),
+                        });
+                    }
+                }
+            } else {
+                dead_ids.push(id.clone());
+            }
+            continue;
+        }
+
         if handle.is_docker {
             // Docker Compose process — query docker compose ps directly
             if let (Some(compose_file), Some(compose_dir)) =
@@ -173,6 +287,7 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
                         pid: 0,
                         status: ProcessStatus::Running,
                         ports,
+                        run_mode: handle.run_mode.clone(),
                     });
                 } else {
                     // No running containers — check grace period
@@ -184,6 +299,7 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
                             pid: 0,
                             status: ProcessStatus::Starting,
                             ports: Vec::new(),
+                            run_mode: handle.run_mode.clone(),
                         });
                     } else {
                         dead_ids.push(id.clone());
@@ -192,6 +308,7 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
                             pid: 0,
                             status: ProcessStatus::Stopped,
                             ports: Vec::new(),
+                            run_mode: handle.run_mode.clone(),
                         });
                     }
                 }
@@ -229,6 +346,7 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
                     pid: handle.pid,
                     status: ProcessStatus::Running,
                     ports: still_active,
+                    run_mode: handle.run_mode.clone(),
                 });
             } else {
                 let elapsed = handle.started_at.elapsed().as_secs();
@@ -239,14 +357,20 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
                         pid: handle.pid,
                         status: ProcessStatus::Starting,
                         ports: Vec::new(),
+                        run_mode: handle.run_mode.clone(),
                     });
                 } else {
+                    // Preserve last-known ports before removing handle
+                    if !handle.ports.is_empty() {
+                        ports_to_save.push((id.clone(), handle.ports.clone()));
+                    }
                     dead_ids.push(id.clone());
                     results.push(RunningProcess {
                         id: id.clone(),
                         pid: handle.pid,
                         status: ProcessStatus::Stopped,
                         ports: Vec::new(),
+                        run_mode: handle.run_mode.clone(),
                     });
                 }
             }
@@ -269,6 +393,7 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
             pid: handle.pid,
             status: handle.status.clone(),
             ports,
+            run_mode: handle.run_mode.clone(),
         });
     }
 
@@ -405,4 +530,20 @@ pub fn get_process_resources(state: State<'_, AppState>) -> Result<Vec<ProcessRe
     }
 
     Ok(results)
+}
+
+#[tauri::command]
+pub fn get_process_logs(id: String, since: usize, state: State<'_, AppState>) -> Result<ProcessLogResult, String> {
+    let processes = state
+        .process_manager
+        .processes
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+
+    if let Some(handle) = processes.get(&id) {
+        let (lines, offset) = handle.log_buffer.get_lines_since(since);
+        Ok(ProcessLogResult { lines, offset })
+    } else {
+        Ok(ProcessLogResult { lines: Vec::new(), offset: 0 })
+    }
 }

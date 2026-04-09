@@ -23,11 +23,23 @@ export default function EditProcessModal({
   const [groupId, setGroupId] = useState<string | null>(process.group_id);
   const [processType, setProcessType] = useState<ProcessType>(process.process_type || "Command");
   const [composeFile, setComposeFile] = useState(process.compose_file || "");
+  const [showProd, setShowProd] = useState(
+    !!(process.prod_command || process.prod_directory || process.prod_compose_file)
+  );
+  const [prodCommand, setProdCommand] = useState(process.prod_command || "");
+  const [prodDirectory, setProdDirectory] = useState(process.prod_directory || "");
+  const [prodComposeFile, setProdComposeFile] = useState(process.prod_compose_file || "");
+  const [containerId, setContainerId] = useState(process.container_id || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isDocker = processType === "DockerCompose";
-  const canSave = name.trim() && directory.trim() && (isDocker ? composeFile.trim() : command.trim());
+  const isContainer = processType === "DockerContainer";
+  const canSave = name.trim() && (
+    isContainer
+      ? containerId.trim()
+      : directory.trim() && (isDocker ? composeFile.trim() : command.trim())
+  );
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -38,11 +50,17 @@ export default function EditProcessModal({
         name: name.trim(),
         command: isDocker
           ? `docker compose -f ${composeFile.trim()} up -d`
-          : command.trim(),
-        directory: directory.trim(),
+          : isContainer
+            ? `docker start ${containerId.trim()}`
+            : command.trim(),
+        directory: isContainer ? "." : directory.trim(),
         group_id: groupId,
         process_type: processType,
         compose_file: isDocker ? composeFile.trim() : null,
+        prod_command: showProd && !isDocker && !isContainer && prodCommand.trim() ? prodCommand.trim() : null,
+        prod_directory: showProd && prodDirectory.trim() ? prodDirectory.trim() : null,
+        prod_compose_file: showProd && isDocker && prodComposeFile.trim() ? prodComposeFile.trim() : null,
+        container_id: isContainer ? containerId.trim() : null,
       });
       onClose();
     } catch (err) {
@@ -75,6 +93,7 @@ export default function EditProcessModal({
           >
             <option value="Command">Command</option>
             <option value="DockerCompose">Docker Compose</option>
+            <option value="DockerContainer">Docker Container</option>
           </select>
         </div>
 
@@ -90,7 +109,19 @@ export default function EditProcessModal({
           />
         </div>
 
-        {isDocker ? (
+        {isContainer ? (
+          <div className={styles.field}>
+            <label className={styles.label}>Container ID or Name</label>
+            <input
+              className={styles.input}
+              type="text"
+              value={containerId}
+              onChange={(e) => setContainerId(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="my-postgres or a1b2c3d4"
+            />
+          </div>
+        ) : isDocker ? (
           <div className={styles.field}>
             <label className={styles.label}>Compose File</label>
             <input
@@ -115,16 +146,18 @@ export default function EditProcessModal({
           </div>
         )}
 
-        <div className={styles.field}>
-          <label className={styles.label}>Directory</label>
-          <input
-            className={styles.input}
-            type="text"
-            value={directory}
-            onChange={(e) => setDirectory(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
+        {!isContainer && (
+          <div className={styles.field}>
+            <label className={styles.label}>Directory</label>
+            <input
+              className={styles.input}
+              type="text"
+              value={directory}
+              onChange={(e) => setDirectory(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+        )}
 
         <div className={styles.field}>
           <label className={styles.label}>Group (optional)</label>
@@ -140,6 +173,69 @@ export default function EditProcessModal({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Production mode section */}
+        <div className={styles.prodSection}>
+          <button
+            type="button"
+            className={styles.prodToggle}
+            onClick={() => setShowProd(!showProd)}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{ transform: showProd ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}
+            >
+              <polyline points="4 2 8 6 4 10" />
+            </svg>
+            Production Overrides
+            <span className={styles.prodHint}>(optional)</span>
+          </button>
+          {showProd && (
+            <div className={styles.prodFields}>
+              {isDocker ? (
+                <div className={styles.field}>
+                  <label className={styles.label}>Prod Compose File</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    value={prodComposeFile}
+                    onChange={(e) => setProdComposeFile(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="docker/docker-compose.prod.yml"
+                  />
+                </div>
+              ) : (
+                <div className={styles.field}>
+                  <label className={styles.label}>Prod Command</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    value={prodCommand}
+                    onChange={(e) => setProdCommand(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="npm run start"
+                  />
+                </div>
+              )}
+              <div className={styles.field}>
+                <label className={styles.label}>Prod Directory</label>
+                <input
+                  className={styles.input}
+                  type="text"
+                  value={prodDirectory}
+                  onChange={(e) => setProdDirectory(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Leave blank to use same directory"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {error && <div className={styles.error}>{error}</div>}

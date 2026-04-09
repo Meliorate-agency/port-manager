@@ -8,6 +8,9 @@ mod process_manager;
 use std::sync::Mutex;
 
 use tauri::Manager;
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::TrayIconBuilder;
+use tauri::image::Image;
 
 use commands::AppState;
 use process_manager::ProcessManager;
@@ -24,6 +27,10 @@ pub fn run() {
                 )?;
             }
 
+            // Register plugins
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle().plugin(tauri_plugin_opener::init())?;
+
             let config_dir = dirs::data_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("com.internal-tools.port-manager");
@@ -39,7 +46,68 @@ pub fn run() {
 
             app.manage(state);
 
+            // --- System Tray ---
+            let show_item = MenuItemBuilder::with_id("show", "Show").build(app)?;
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let tray_menu = MenuBuilder::new(app)
+                .item(&show_item)
+                .separator()
+                .item(&quit_item)
+                .build()?;
+
+            let tray_icon = Image::from_path("icons/icon.png")
+                .unwrap_or_else(|_| Image::from_bytes(include_bytes!("../icons/icon.png")).expect("Failed to load tray icon"));
+
+            TrayIconBuilder::new()
+                .icon(tray_icon)
+                .menu(&tray_menu)
+                .tooltip("Port Manager")
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event({
+                    let app_handle = app.handle().clone();
+                    move |_tray, event| {
+                        if let tauri::tray::TrayIconEvent::Click {
+                            button: tauri::tray::MouseButton::Left,
+                            button_state: tauri::tray::MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .on_menu_event({
+                    let app_handle = app.handle().clone();
+                    move |_app, event| {
+                        match event.id().as_ref() {
+                            "show" => {
+                                if let Some(window) = app_handle.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.unminimize();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                            "quit" => {
+                                app_handle.exit(0);
+                            }
+                            _ => {}
+                        }
+                    }
+                })
+                .build(app)?;
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Intercept window close: hide to tray instead of quitting
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_system_ports,
@@ -51,6 +119,7 @@ pub fn run() {
             commands::get_running_status,
             commands::refresh_ports,
             commands::get_process_resources,
+            commands::get_process_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppConfig,
+  ProcessLogResult,
   ProcessResources,
   RunningProcess,
   SystemPortInfo,
@@ -10,8 +11,8 @@ export async function listSystemPorts(): Promise<SystemPortInfo[]> {
   return invoke("list_system_ports");
 }
 
-export async function startProcess(id: string): Promise<number> {
-  return invoke("start_process", { id });
+export async function startProcess(id: string, mode?: string): Promise<number> {
+  return invoke("start_process", { id, mode: mode ?? null });
 }
 
 export async function stopProcess(id: string): Promise<void> {
@@ -40,4 +41,8 @@ export async function refreshPorts(): Promise<RunningProcess[]> {
 
 export async function getProcessResources(): Promise<ProcessResources[]> {
   return invoke("get_process_resources");
+}
+
+export async function getProcessLogs(id: string, since: number): Promise<ProcessLogResult> {
+  return invoke("get_process_logs", { id, since });
 }

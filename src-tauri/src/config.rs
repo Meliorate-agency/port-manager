@@ -26,6 +26,10 @@ pub fn load_config(path: &Path) -> AppConfig {
                 last_ports: vec![9090],
                 process_type: ProcessType::Command,
                 compose_file: None,
+                prod_command: None,
+                prod_directory: None,
+                prod_compose_file: None,
+                container_id: None,
             },
         );
         // Save the updated config so it persists

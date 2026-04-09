@@ -21,9 +21,9 @@ interface ProcessListProps {
   processResources: Map<string, ProcessResources>;
   showSystemPorts: boolean;
   searchQuery: string;
-  onStart: (id: string) => Promise<void>;
+  onStart: (id: string, mode?: string) => Promise<void>;
   onStop: (id: string) => Promise<void>;
-  onRestart: (id: string) => Promise<void>;
+  onRestart: (id: string, mode?: string) => Promise<void>;
   onReorderProcesses: (processes: SavedProcess[]) => Promise<void>;
   onDeleteProcess: (id: string) => Promise<void>;
   onEditProcess: (process: SavedProcess) => void;
@@ -32,6 +32,7 @@ interface ProcessListProps {
   onToggleGroupCollapsed: (id: string) => Promise<void>;
   onKillSystem: (pid: number) => Promise<void>;
   onLoadSystemPorts: () => Promise<void>;
+  onSelectProcess?: (id: string) => void;
 }
 
 export default function ProcessList({
@@ -53,6 +54,7 @@ export default function ProcessList({
   onToggleGroupCollapsed,
   onKillSystem,
   onLoadSystemPorts,
+  onSelectProcess,
 }: ProcessListProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [folderMenuCloseCounter, setFolderMenuCloseCounter] = useState(0);
@@ -232,12 +234,13 @@ export default function ProcessList({
     };
   }, [draggedId, dragOverId, dragOverGroupId, processes, onReorderProcesses]);
 
-  const renderProcessCard = (p: SavedProcess) => (
+  const renderProcessCard = (p: SavedProcess, grouped = false) => (
     <ProcessCard
       key={p.id}
       process={p}
       status={getStatus(p.id)}
       resources={processResources.get(p.id)}
+      isGrouped={grouped}
       onStart={onStart}
       onStop={onStop}
       onRestart={onRestart}
@@ -250,6 +253,7 @@ export default function ProcessList({
       onGripMouseDown={!searchQuery ? handleGripMouseDown : undefined}
       isDragOver={dragOverId === p.id}
       isDragging={draggedId === p.id}
+      onSelect={onSelectProcess}
     />
   );
 
@@ -266,54 +270,56 @@ export default function ProcessList({
         </div>
       ) : (
         <>
-          {groups.map((group) => {
-            const groupProcesses = filteredProcesses.filter(
-              (p) => p.group_id === group.id,
-            );
-            if (searchQuery && groupProcesses.length === 0) return null;
-            const hasRunning = groupProcesses.some((p) => {
-              const s = getStatus(p.id);
-              return s && (s.status === "Running" || s.status === "Starting");
-            });
-            const hasStopped = groupProcesses.some((p) => {
-              const s = getStatus(p.id);
-              return !s || s.status === "Stopped";
-            });
-            return (
-              <FolderGroup
-                key={group.id}
-                group={group}
-                count={groupProcesses.length}
-                hasRunning={hasRunning}
-                hasStopped={hasStopped}
-                onDelete={onDeleteGroup}
-                onRename={onRenameGroup}
-                onToggleCollapsed={onToggleGroupCollapsed}
-                onStartAll={async () => {
-                  for (const p of groupProcesses) {
-                    const s = getStatus(p.id);
-                    if (!s || s.status === "Stopped") {
-                      await onStart(p.id);
+          <div className={styles.grid}>
+            {groups.map((group) => {
+              const groupProcesses = filteredProcesses.filter(
+                (p) => p.group_id === group.id,
+              );
+              if (searchQuery && groupProcesses.length === 0) return null;
+              const hasRunning = groupProcesses.some((p) => {
+                const s = getStatus(p.id);
+                return s && (s.status === "Running" || s.status === "Starting");
+              });
+              const hasStopped = groupProcesses.some((p) => {
+                const s = getStatus(p.id);
+                return !s || s.status === "Stopped";
+              });
+              return (
+                <FolderGroup
+                  key={group.id}
+                  group={group}
+                  count={groupProcesses.length}
+                  hasRunning={hasRunning}
+                  hasStopped={hasStopped}
+                  onDelete={onDeleteGroup}
+                  onRename={onRenameGroup}
+                  onToggleCollapsed={onToggleGroupCollapsed}
+                  onStartAll={async () => {
+                    for (const p of groupProcesses) {
+                      const s = getStatus(p.id);
+                      if (!s || s.status === "Stopped") {
+                        await onStart(p.id);
+                      }
                     }
-                  }
-                }}
-                onStopAll={async () => {
-                  for (const p of groupProcesses) {
-                    const s = getStatus(p.id);
-                    if (s && (s.status === "Running" || s.status === "Starting")) {
-                      await onStop(p.id);
+                  }}
+                  onStopAll={async () => {
+                    for (const p of groupProcesses) {
+                      const s = getStatus(p.id);
+                      if (s && (s.status === "Running" || s.status === "Starting")) {
+                        await onStop(p.id);
+                      }
                     }
-                  }
-                }}
-                isDragOver={dragOverGroupId === group.id}
-                registerRef={registerGroupRef}
-                forceCloseMenu={folderMenuCloseCounter}
-                onContextMenuOpen={handleFolderContextMenuOpen}
-              >
-                {groupProcesses.map(renderProcessCard)}
-              </FolderGroup>
-            );
-          })}
+                  }}
+                  isDragOver={dragOverGroupId === group.id}
+                  registerRef={registerGroupRef}
+                  forceCloseMenu={folderMenuCloseCounter}
+                  onContextMenuOpen={handleFolderContextMenuOpen}
+                >
+                  {groupProcesses.map((p) => renderProcessCard(p, true))}
+                </FolderGroup>
+              );
+            })}
+          </div>
 
           {ungrouped.length > 0 && (
             <>
@@ -326,7 +332,7 @@ export default function ProcessList({
                 </div>
               )}
               <div className={styles.ungrouped}>
-                {ungrouped.map(renderProcessCard)}
+                {ungrouped.map((p) => renderProcessCard(p))}
               </div>
             </>
           )}

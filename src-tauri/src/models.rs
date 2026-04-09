@@ -4,11 +4,24 @@ use serde::{Deserialize, Serialize};
 pub enum ProcessType {
     Command,
     DockerCompose,
+    DockerContainer,
 }
 
 impl Default for ProcessType {
     fn default() -> Self {
         ProcessType::Command
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RunMode {
+    Dev,
+    Prod,
+}
+
+impl Default for RunMode {
+    fn default() -> Self {
+        RunMode::Dev
     }
 }
 
@@ -25,6 +38,14 @@ pub struct SavedProcess {
     pub process_type: ProcessType,
     #[serde(default)]
     pub compose_file: Option<String>,
+    #[serde(default)]
+    pub prod_command: Option<String>,
+    #[serde(default)]
+    pub prod_directory: Option<String>,
+    #[serde(default)]
+    pub prod_compose_file: Option<String>,
+    #[serde(default)]
+    pub container_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +75,8 @@ pub struct RunningProcess {
     pub pid: u32,
     pub status: ProcessStatus,
     pub ports: Vec<u16>,
+    #[serde(default)]
+    pub run_mode: RunMode,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,4 +101,10 @@ pub struct SystemPortInfo {
     pub local_addr: String,
     pub local_port: u16,
     pub state: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProcessLogResult {
+    pub lines: Vec<String>,
+    pub offset: usize,
 }

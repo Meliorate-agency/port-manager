@@ -4,7 +4,8 @@
       "Bash(npx @tauri-apps/cli@latest init --app-name \"Port Manager\" --window-title \"Port Manager\" --frontend-dist \"../out\" --dev-url \"http://localhost:3000\" --before-dev-command \"npm run dev\" --before-build-command \"npm run build\")",
       "Bash(npm install:*)",
       "Bash(cargo build:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(cargo check:*)"
     ]
   }
 }

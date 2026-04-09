@@ -97,53 +97,57 @@ export default function FolderGroup({
     setIsRenaming(false);
   };
 
+  // Derive initials for the logo placeholder
+  const initials = group.name
+    .split(/[\s\-_]+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+
   return (
-    <div className={styles.group}>
+    <div className={`${styles.card} ${isDragOver ? styles.cardDragOver : ""}`}>
+      {/* Card header */}
       <div
-        className={`${styles.header} ${isDragOver ? styles.headerDragOver : ""}`}
+        className={styles.header}
         onClick={() => onToggleCollapsed(group.id)}
         onContextMenu={handleContextMenu}
         data-group-id={group.id}
         ref={(el) => registerRef?.(group.id, el)}
       >
-        <svg
-          className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-        <svg className={styles.folderIcon} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" />
-        </svg>
-        {isRenaming ? (
-          <input
-            ref={renameInputRef}
-            className={styles.renameInput}
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onBlur={handleRenameSubmit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleRenameSubmit();
-              if (e.key === "Escape") {
-                setRenameValue(group.name);
-                setIsRenaming(false);
-              }
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <span className={styles.name}>{group.name}</span>
-        )}
-        <span className={styles.count}>{count}</span>
-        <div className={styles.groupActions} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.logo}>
+          <span className={styles.logoInitials}>{initials}</span>
+        </div>
+        <div className={styles.headerInfo}>
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              className={styles.renameInput}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={handleRenameSubmit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameSubmit();
+                if (e.key === "Escape") {
+                  setRenameValue(group.name);
+                  setIsRenaming(false);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className={styles.name}>{group.name}</span>
+          )}
+          <span className={styles.count}>
+            {count} {count === 1 ? "service" : "services"}
+            {hasRunning && <span className={styles.runningDot} />}
+          </span>
+        </div>
+        <div className={styles.headerActions} onClick={(e) => e.stopPropagation()}>
           {hasStopped && (
             <button
               className={styles.startAllButton}
               onClick={onStartAll}
-              title="Start all processes"
+              title="Start all services"
             >
               <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
                 <polygon points="2,0 14,7 2,14" />
@@ -154,7 +158,7 @@ export default function FolderGroup({
             <button
               className={styles.stopAllButton}
               onClick={onStopAll}
-              title="Stop all processes"
+              title="Stop all services"
             >
               <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
                 <rect x="1" y="1" width="12" height="12" rx="1" />
@@ -162,16 +166,29 @@ export default function FolderGroup({
             </button>
           )}
         </div>
+        <svg
+          className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
       </div>
 
+      {/* Service rows */}
       {isOpen && (
         count > 0 ? (
-          <div className={styles.children}>{children}</div>
+          <div className={styles.services}>{children}</div>
         ) : (
-          <div className={styles.emptyChildren}>No processes in this group</div>
+          <div className={styles.emptyServices}>
+            No services in this project
+          </div>
         )
       )}
 
+      {/* Context menu */}
       {contextMenu && (
         <div
           className={styles.contextMenu}
@@ -210,8 +227,8 @@ export default function FolderGroup({
 
       {showConfirm && (
         <ConfirmDialog
-          title="Remove Group"
-          message={`Remove group "${group.name}"? Processes will be moved to ungrouped.`}
+          title="Remove Project"
+          message={`Remove project "${group.name}"? Services will be moved to ungrouped.`}
           onConfirm={async () => {
             await onDelete(group.id);
             setShowConfirm(false);

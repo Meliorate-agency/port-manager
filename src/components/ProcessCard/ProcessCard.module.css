@@ -1,19 +1,214 @@
+/* ===== Standalone Card (ungrouped / self) ===== */
 .card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 12px;
+  padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: background 0.15s, border-color 0.15s, opacity 0.3s;
+  cursor: pointer;
 }
 
 .card:hover {
   background: var(--bg-hover);
 }
 
+.selfCard {
+  border-color: var(--border);
+  background: transparent;
+  margin-bottom: 8px;
+  box-shadow: none;
+}
+
+.selfCard:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+
+/* ===== Compact Service Row (inside project card) ===== */
+.serviceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  transition: background 0.1s, opacity 0.3s;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.serviceRow:not(:last-child) {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.serviceRow:hover {
+  background: var(--bg-hover);
+}
+
+.serviceInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.serviceNameRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.serviceName {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.serviceCommand {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dockerIconSmall {
+  width: 12px;
+  height: 12px;
+  color: #2496ed;
+  flex-shrink: 0;
+}
+
+/* Service port badges (under name) */
+.servicePorts {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.servicePort {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0px 4px;
+  border-radius: 3px;
+  background: var(--badge-bg);
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--badge-text);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.servicePortDimmed {
+  opacity: 0.35;
+}
+
+.servicePortStats {
+  font-size: 8px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* 3-dot menu button */
+.dotsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: all 0.15s;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.serviceRow:hover .dotsBtn {
+  opacity: 1;
+}
+
+.dotsBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 3-dot dropdown menu */
+.dotsMenu {
+  position: absolute;
+  z-index: 200;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: var(--shadow-lg);
+}
+
+.dotsMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.dotsMenuItem:hover {
+  background: var(--bg-hover);
+}
+
+.dotsMenuItem:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dotsMenuSuccess {
+  color: var(--success);
+}
+
+.dotsMenuSuccess:hover {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.dotsMenuWarning {
+  color: var(--warning);
+}
+
+.dotsMenuWarning:hover {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+
+.dotsMenuDanger {
+  color: var(--danger);
+}
+
+.dotsMenuDanger:hover {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.dotsMenuIcon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+/* ===== Shared Styles ===== */
+
+/* Drag states */
 .dragOver {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
@@ -30,16 +225,13 @@
   color: var(--text-muted);
   cursor: grab;
   padding: 2px;
-  opacity: 0.4;
+  opacity: 0.3;
   transition: opacity 0.15s;
+  flex-shrink: 0;
 }
 
 .dragHandle:hover {
   opacity: 1;
-}
-
-.card:active .dragHandle {
-  cursor: grabbing;
 }
 
 /* Restart animation */
@@ -55,9 +247,15 @@
   100% { opacity: 1; border-color: var(--border); }
 }
 
+.restarting .restartButton svg,
+.restarting .serviceBtn svg {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Status dot */
 .statusDot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -74,16 +272,19 @@
 
 .statusStopped {
   background: var(--text-muted);
+  opacity: 0.5;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
+/* Card info section */
 .info {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .name {
@@ -92,6 +293,10 @@
   gap: 6px;
   font-weight: 600;
   font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dockerIcon {
@@ -104,12 +309,17 @@
 .meta {
   display: flex;
   gap: 12px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .command {
   color: var(--text-secondary);
   font-size: 12px;
   font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .directory {
@@ -121,6 +331,7 @@
   max-width: 200px;
 }
 
+/* Card port badges */
 .ports {
   display: flex;
   gap: 4px;
@@ -153,16 +364,7 @@
   font-size: 10px;
 }
 
-.selfCard {
-  border-color: var(--border);
-  background: transparent;
-  margin-bottom: 8px;
-}
-
-.selfCard:hover {
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
-}
-
+/* Card action buttons */
 .actions {
   display: flex;
   gap: 6px;
@@ -208,10 +410,6 @@
   cursor: not-allowed;
 }
 
-.restarting .restartButton svg {
-  animation: spin 0.8s linear infinite;
-}
-
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(-360deg); }
@@ -249,7 +447,64 @@
   color: var(--danger);
 }
 
-/* Context menu */
+/* ===== Mode Toggle (DEV/PROD) ===== */
+.modeToggle {
+  display: flex;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modeButton {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.modeButton:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.modeButtonActive {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+}
+
+.modeButtonActiveProd {
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+}
+
+/* Mode badge */
+.modeBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modeBadgeDev {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.modeBadgeProd {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+
+/* ===== Context Menu ===== */
 .contextMenu {
   position: fixed;
   z-index: 200;

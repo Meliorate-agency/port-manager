@@ -1,7 +1,11 @@
 .container {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .sectionTitle {
@@ -11,7 +15,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 4px 12px;
-  margin-bottom: 8px;
+  margin-top: 4px;
   border-radius: var(--radius);
   transition: background 0.15s;
 }
@@ -21,16 +25,21 @@
   border: 1px dashed var(--accent);
 }
 
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
 .ungrouped {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .empty {
   text-align: center;
-  padding: 40px 20px;
+  padding: 60px 20px;
   color: var(--text-muted);
 }
 
@@ -52,7 +61,6 @@
   gap: 8px;
   width: 100%;
   padding: 12px;
-  margin-top: 24px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
   color: var(--text-muted);
