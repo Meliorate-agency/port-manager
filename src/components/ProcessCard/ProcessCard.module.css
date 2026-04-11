@@ -6,7 +6,7 @@
   padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: background 0.15s, border-color 0.15s, opacity 0.3s;
   cursor: pointer;

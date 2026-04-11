@@ -117,7 +117,6 @@ pub fn run() {
             commands::save_config,
             commands::load_config,
             commands::get_running_status,
-            commands::refresh_ports,
             commands::get_process_resources,
             commands::get_process_logs,
         ])

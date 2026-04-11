@@ -31,7 +31,6 @@ interface ProcessListProps {
   onRenameGroup: (id: string, newName: string) => Promise<void>;
   onToggleGroupCollapsed: (id: string) => Promise<void>;
   onKillSystem: (pid: number) => Promise<void>;
-  onLoadSystemPorts: () => Promise<void>;
   onSelectProcess?: (id: string) => void;
 }
 
@@ -53,7 +52,6 @@ export default function ProcessList({
   onRenameGroup,
   onToggleGroupCollapsed,
   onKillSystem,
-  onLoadSystemPorts,
   onSelectProcess,
 }: ProcessListProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -95,8 +93,6 @@ export default function ProcessList({
       window.removeEventListener("contextmenu", close);
     };
   }, [contextMenu]);
-
-  const selfProcess = processes.find((p) => p.id === "port-manager-self");
 
   const filteredProcesses = processes.filter((p) => {
     if (p.id === "port-manager-self") return false;
@@ -259,8 +255,6 @@ export default function ProcessList({
 
   return (
     <div className={styles.container} ref={containerRef}>
-      {selfProcess && renderProcessCard(selfProcess)}
-
       {!hasContent ? (
         <div className={styles.empty}>
           <div className={styles.emptyTitle}>No processes configured</div>
@@ -339,21 +333,12 @@ export default function ProcessList({
         </>
       )}
 
-      {showSystemPorts ? (
+      {showSystemPorts && (
         <SystemPorts
           ports={systemPorts}
           searchQuery={searchQuery}
           onKill={onKillSystem}
         />
-      ) : (
-        <button className={styles.loadSystemPortsButton} onClick={onLoadSystemPorts}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="8 12 12 16 16 12" />
-            <line x1="12" y1="8" x2="12" y2="16" />
-          </svg>
-          Load System Ports
-        </button>
       )}
     </div>
   );

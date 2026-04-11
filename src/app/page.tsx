@@ -24,7 +24,7 @@ export default function Home() {
     searchQuery,
     setSearchQuery,
     showSystemPorts,
-    refreshPorts,
+    setShowSystemPorts,
     fetchSystemPorts,
     addProcess,
     updateProcess,
@@ -39,6 +39,14 @@ export default function Home() {
     restartProcess,
     killSystemProcess,
   } = useProcesses();
+
+  const handleToggleSystemPorts = (show: boolean) => {
+    if (show) {
+      fetchSystemPorts();
+    } else {
+      setShowSystemPorts(false);
+    }
+  };
 
   const [showAddProcess, setShowAddProcess] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -60,7 +68,8 @@ export default function Home() {
         onSearchChange={setSearchQuery}
         onAddProcess={() => setShowAddProcess(true)}
         onAddGroup={() => setShowAddGroup(true)}
-        onRefresh={refreshPorts}
+        showSystemPorts={showSystemPorts}
+        onToggleSystemPorts={handleToggleSystemPorts}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -83,7 +92,6 @@ export default function Home() {
           onRenameGroup={renameGroup}
           onToggleGroupCollapsed={toggleGroupCollapsed}
           onKillSystem={killSystemProcess}
-          onLoadSystemPorts={fetchSystemPorts}
           onSelectProcess={setSelectedProcessId}
         />
         {selectedProcess && (

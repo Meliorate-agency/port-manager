@@ -53,22 +53,3 @@
 .emptyText {
   font-size: 13px;
 }
-
-.loadSystemPortsButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  color: var(--text-muted);
-  font-size: 13px;
-  transition: color 0.2s, border-color 0.2s;
-}
-
-.loadSystemPortsButton:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}

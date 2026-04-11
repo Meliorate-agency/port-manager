@@ -35,10 +35,6 @@ export async function getRunningStatus(): Promise<RunningProcess[]> {
   return invoke("get_running_status");
 }
 
-export async function refreshPorts(): Promise<RunningProcess[]> {
-  return invoke("refresh_ports");
-}
-
 export async function getProcessResources(): Promise<ProcessResources[]> {
   return invoke("get_process_resources");
 }

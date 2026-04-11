@@ -1,42 +1,13 @@
 use std::fs;
 use std::path::Path;
 
-use crate::models::{AppConfig, ProcessType, SavedProcess};
+use crate::models::AppConfig;
 
 pub fn load_config(path: &Path) -> AppConfig {
-    let mut config = match fs::read_to_string(path) {
+    match fs::read_to_string(path) {
         Ok(contents) => serde_json::from_str(&contents).unwrap_or_default(),
         Err(_) => AppConfig::default(),
-    };
-
-    // Ensure the "Port Manager (This)" self-referencing entry always exists
-    let self_id = "port-manager-self";
-    if !config.processes.iter().any(|p| p.id == self_id) {
-        config.processes.insert(
-            0,
-            SavedProcess {
-                id: self_id.to_string(),
-                name: "Port Manager (This)".to_string(),
-                command: "npm run tauri:dev".to_string(),
-                directory: std::env::current_dir()
-                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                    .to_string_lossy()
-                    .to_string(),
-                group_id: None,
-                last_ports: vec![9090],
-                process_type: ProcessType::Command,
-                compose_file: None,
-                prod_command: None,
-                prod_directory: None,
-                prod_compose_file: None,
-                container_id: None,
-            },
-        );
-        // Save the updated config so it persists
-        let _ = save_config(path, &config);
     }
-
-    config
 }
 
 pub fn save_config(path: &Path, config: &AppConfig) -> Result<(), String> {

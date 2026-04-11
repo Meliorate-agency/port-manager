@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle";
 import UpdateChecker from "@/components/UpdateChecker/UpdateChecker";
 import styles from "./Toolbar.module.css";
@@ -10,7 +9,8 @@ interface ToolbarProps {
   onSearchChange: (query: string) => void;
   onAddProcess: () => void;
   onAddGroup: () => void;
-  onRefresh: () => Promise<void>;
+  showSystemPorts: boolean;
+  onToggleSystemPorts: (show: boolean) => void;
   theme: "light" | "dark";
   onToggleTheme: () => void;
 }
@@ -20,25 +20,13 @@ export default function Toolbar({
   onSearchChange,
   onAddProcess,
   onAddGroup,
-  onRefresh,
+  showSystemPorts,
+  onToggleSystemPorts,
   theme,
   onToggleTheme,
 }: ToolbarProps) {
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await onRefresh();
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   return (
     <div className={styles.toolbar}>
-      <div className={styles.title}>Port Manager</div>
-
       <div className={styles.searchWrapper}>
         <svg
           className={styles.searchIcon}
@@ -57,6 +45,21 @@ export default function Toolbar({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search processes, ports..."
         />
+
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            className={styles.checkboxInput}
+            checked={showSystemPorts}
+            onChange={(e) => onToggleSystemPorts(e.target.checked)}
+          />
+          <span className={styles.checkboxVisual}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          System Ports
+        </label>
       </div>
 
       <div className={styles.spacer} />
@@ -65,28 +68,8 @@ export default function Toolbar({
         + Process
       </button>
 
-      <button className={styles.actionButton} onClick={onAddGroup}>
+      <button className={styles.actionButton} onClick={onAddGroup} style={{ marginRight: 20 }}>
         + Group
-      </button>
-
-      <button
-        className={styles.refreshButton}
-        onClick={handleRefresh}
-        title="Refresh ports"
-        disabled={refreshing}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className={refreshing ? styles.spinning : ""}
-        >
-          <path d="M21 12a9 9 0 1 1-9-9" />
-          <polyline points="21 3 21 9 15 9" />
-        </svg>
       </button>
 
       <UpdateChecker />

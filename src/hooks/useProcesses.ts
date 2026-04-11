@@ -118,20 +118,6 @@ export function useProcesses() {
     };
   }, []);
 
-  const refreshPorts = useCallback(async () => {
-    try {
-      const [status, ports] = await Promise.all([
-        commands.refreshPorts(),
-        commands.listSystemPorts(),
-      ]);
-      setRunningStatus(status);
-      setSystemPorts(ports);
-      setShowSystemPorts(true);
-    } catch (err) {
-      console.error("Refresh error:", err);
-    }
-  }, []);
-
   const fetchSystemPorts = useCallback(async () => {
     try {
       const ports = await commands.listSystemPorts();
@@ -307,7 +293,6 @@ export function useProcesses() {
     setSearchQuery,
     showSystemPorts,
     setShowSystemPorts,
-    refreshPorts,
     fetchSystemPorts,
     addProcess,
     updateProcess,

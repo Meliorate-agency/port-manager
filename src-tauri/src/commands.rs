@@ -159,9 +159,6 @@ fn validate_no_shell_metacharacters(value: &str, field_name: &str) -> Result<(),
 pub fn save_config(config: AppConfig, state: State<'_, AppState>) -> Result<(), String> {
     // Validate inputs before saving
     for p in &config.processes {
-        if p.id == "port-manager-self" {
-            continue;
-        }
         if let Some(ref compose_file) = p.compose_file {
             validate_no_shell_metacharacters(compose_file, "Compose file path")?;
         }
@@ -424,11 +421,6 @@ pub fn get_running_status(state: State<'_, AppState>) -> Result<Vec<RunningProce
     }
 
     Ok(results)
-}
-
-#[tauri::command]
-pub fn refresh_ports(state: State<'_, AppState>) -> Result<Vec<RunningProcess>, String> {
-    get_running_status(state)
 }
 
 #[tauri::command]
