@@ -42,4 +42,7 @@ next-env.d.ts
 
 .claude/
 
-*.md
+AGENTS.md
+ARCHITECTURE.md
+CLAUDE.md
+TODO.md
