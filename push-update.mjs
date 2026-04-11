@@ -26,7 +26,7 @@ import os from 'node:os';
 
 const REPO_ROOT = process.cwd();
 const REPO_SLUG = 'Meliorate-agency/port-manager';
-const GIT_AUTHOR_EMAIL = 'adrian@users.noreply.github.com';
+const GIT_AUTHOR_EMAIL = '79503069+adrian-stavljenic@users.noreply.github.com';
 const KEY_PATH = path.join(REPO_ROOT, '.tauri', 'port-manager.key');
 const PKG_JSON = path.join(REPO_ROOT, 'package.json');
 const TAURI_CONF = path.join(REPO_ROOT, 'src-tauri', 'tauri.conf.json');
