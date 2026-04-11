@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle";
+import UpdateChecker from "@/components/UpdateChecker/UpdateChecker";
 import styles from "./Toolbar.module.css";
 
 interface ToolbarProps {
@@ -87,6 +88,8 @@ export default function Toolbar({
           <polyline points="21 3 21 9 15 9" />
         </svg>
       </button>
+
+      <UpdateChecker />
 
       <ThemeToggle theme={theme} onToggle={onToggleTheme} />
     </div>

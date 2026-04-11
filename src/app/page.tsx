@@ -10,7 +10,6 @@ import DetailPanel from "@/components/DetailPanel/DetailPanel";
 import AddProcessModal from "@/components/AddProcessModal/AddProcessModal";
 import AddGroupModal from "@/components/AddGroupModal/AddGroupModal";
 import EditProcessModal from "@/components/EditProcessModal/EditProcessModal";
-import UpdateChecker from "@/components/UpdateChecker/UpdateChecker";
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -56,7 +55,6 @@ export default function Home() {
 
   return (
     <div className={styles.main}>
-      <UpdateChecker />
       <Toolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
