@@ -1,0 +1,11 @@
+{
+  "version": "0.1.1",
+  "notes": "Bug fixes and improvements.",
+  "pub_date": "2026-04-11T10:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "PASTE_CONTENTS_OF_.sig_FILE_HERE",
+      "url": "https://github.com/Meliorate-agency/port-manager/releases/download/v0.1.1/Port.Manager_0.1.1_x64-setup.exe"
+    }
+  }
+}

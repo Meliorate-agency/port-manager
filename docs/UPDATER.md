@@ -10,16 +10,18 @@ Port Manager uses the [`tauri-plugin-updater`](https://tauri.app/plugin/updater/
 
 ## 1. Generate a signing key pair
 
-Tauri uses [minisign](https://jedisct1.github.io/minisign/)-compatible keys. The Tauri CLI can make them for you:
+Tauri uses [minisign](https://jedisct1.github.io/minisign/)-compatible keys. The keys for this project live in `.tauri/` at the repo root, which is **gitignored** — `.gitignore` blocks the whole folder, and also has a `*.key` rule as a second line of defense.
+
+If the keys already exist in `.tauri/`, skip this step. To generate a fresh pair:
 
 ```bash
-npm run tauri signer generate -- -w ~/.tauri/port-manager.key
+npm run tauri signer generate -- -w .tauri/port-manager.key
 ```
 
 This writes:
 
-- `~/.tauri/port-manager.key` — **private key**. Never commit this, never share it. Back it up somewhere safe (password manager, encrypted drive). If you lose it, existing installed copies can never update again.
-- `~/.tauri/port-manager.key.pub` — **public key**. Safe to commit. This is what gets embedded in the built app to verify update signatures.
+- `.tauri/port-manager.key` — **private key**. Never commit this, never share it. Back it up somewhere safe (password manager, encrypted drive, another machine). If you lose it, existing installed copies can never update again.
+- `.tauri/port-manager.key.pub` — **public key**. Safe to commit (but we still gitignore the whole folder for simplicity). This is what gets embedded in the built app to verify update signatures.
 
 ## 2. Put the public key in the config
 
@@ -43,16 +45,16 @@ Open `src-tauri/tauri.conf.json` and replace the `pubkey` value with the content
 
 The Tauri bundler signs the installer at build time using the private key, provided via environment variables:
 
-**PowerShell (Windows)**
+**PowerShell (Windows)** — run from the repo root:
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content ~/.tauri/port-manager.key -Raw
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content .\.tauri\port-manager.key -Raw
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""   # if you set a password, put it here
 npm run tauri:build
 ```
 
-**bash / zsh**
+**bash / zsh** — run from the repo root:
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/port-manager.key)"
+export TAURI_SIGNING_PRIVATE_KEY="$(cat .tauri/port-manager.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 npm run tauri:build
 ```
@@ -80,6 +82,7 @@ Your endpoint has to return a JSON document the updater plugin understands. The 
 }
 ```
 
+> HERE
 Two ways to host this without running a server:
 
 ### Option A — GitHub Releases (recommended)
