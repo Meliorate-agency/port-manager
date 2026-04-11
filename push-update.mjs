@@ -89,10 +89,16 @@ function parseArgs() {
     else if (a === '-h' || a === '--help') {
       console.log(`Usage: node push-update.mjs [version] [notes] [--skip-build]
 
-  version        New version in x.y.z form (e.g. 0.1.1)
-  notes          Release notes (wrap in quotes)
+  version        New version in x.y.z form (e.g. 0.1.1).
+                 Omit to auto-bump the patch version (0.1.0 → 0.1.1).
+  notes          Release notes (wrap in quotes). Prompted if omitted.
   --skip-build   Skip version bump + build + commit + push.
                  Use to retry release upload after a failed run.
+
+Examples:
+  node push-update.mjs                             # auto-bump patch, prompt for notes
+  node push-update.mjs 0.2.0 "Big redesign"        # explicit minor bump
+  node push-update.mjs 0.1.2 "Fix" --skip-build    # retry a failed release
 `);
       process.exit(0);
     }
@@ -173,7 +179,12 @@ Install from https://cli.github.com/ then run: gh auth login`);
   }
   ok(`current version ${currentVersion}`);
 
-  if (!version) version = await prompt(`New version (current ${currentVersion}): `);
+  if (!version) {
+    // Auto-bump patch: 0.1.0 → 0.1.1
+    const [major, minor, patch] = currentVersion.split('.').map(Number);
+    version = `${major}.${minor}.${patch + 1}`;
+    ok(`auto-bumped version → ${version}`);
+  }
   if (!/^\d+\.\d+\.\d+$/.test(version)) fail(`Invalid version "${version}" — use x.y.z format.`);
   if (!skipBuild && compareSemver(version, currentVersion) <= 0) {
     fail(`New version ${version} must be greater than current ${currentVersion}`);
