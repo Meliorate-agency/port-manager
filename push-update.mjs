@@ -229,12 +229,24 @@ Install from https://cli.github.com/ then run: gh auth login`);
       TAURI_SIGNING_PRIVATE_KEY: privateKey,
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '',
     };
-    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    // On Windows, spawning .cmd files requires shell:true since Node 20
+    // (CVE-2024-27980). Without it, spawnSync silently fails to launch the
+    // process and produces no output.
+    const npmCmd = process.platform === 'win32' ? 'npm' : 'npm';
     const buildResult = spawnSync(npmCmd, ['run', 'tauri:build'], {
-      stdio: 'inherit', cwd: REPO_ROOT, env: buildEnv,
+      stdio: 'inherit',
+      cwd: REPO_ROOT,
+      env: buildEnv,
+      shell: true,
     });
+    if (buildResult.error) {
+      fail(`Could not launch build: ${buildResult.error.message}
+Version bumps are still on disk.
+Revert with: git checkout -- package.json src-tauri/tauri.conf.json`);
+    }
     if (buildResult.status !== 0) {
-      fail(`Build failed. Version bumps are still on disk.
+      fail(`Build exited with code ${buildResult.status}. See the error output above.
+Version bumps are still on disk.
 Revert with: git checkout -- package.json src-tauri/tauri.conf.json`);
     }
     ok('build complete');
