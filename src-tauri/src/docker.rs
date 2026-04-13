@@ -1,6 +1,11 @@
 use serde::Deserialize;
 use serde_json::Value;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::process::Command;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Debug, Clone)]
 pub struct DockerContainer {
@@ -26,10 +31,12 @@ struct Publisher {
 }
 
 pub fn get_compose_status(compose_file: &str, directory: &str) -> Vec<DockerContainer> {
-    let output = Command::new("docker")
-        .args(["compose", "-f", compose_file, "ps", "--format", "json"])
-        .current_dir(directory)
-        .output();
+    let mut cmd = Command::new("docker");
+    cmd.args(["compose", "-f", compose_file, "ps", "--format", "json"])
+        .current_dir(directory);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let output = cmd.output();
 
     let output = match output {
         Ok(o) => o,
@@ -80,8 +87,11 @@ pub struct ContainerStatus {
 }
 
 pub fn start_container(container_id: &str) -> Result<(), String> {
-    let output = Command::new("docker")
-        .args(["start", container_id])
+    let mut cmd = Command::new("docker");
+    cmd.args(["start", container_id]);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let output = cmd
         .output()
         .map_err(|e| format!("Failed to run docker start: {}", e))?;
 
@@ -94,8 +104,11 @@ pub fn start_container(container_id: &str) -> Result<(), String> {
 }
 
 pub fn stop_container(container_id: &str) -> Result<(), String> {
-    let output = Command::new("docker")
-        .args(["stop", container_id])
+    let mut cmd = Command::new("docker");
+    cmd.args(["stop", container_id]);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let output = cmd
         .output()
         .map_err(|e| format!("Failed to run docker stop: {}", e))?;
 
@@ -108,10 +121,11 @@ pub fn stop_container(container_id: &str) -> Result<(), String> {
 }
 
 pub fn get_container_status(container_id: &str) -> Option<ContainerStatus> {
-    let output = Command::new("docker")
-        .args(["inspect", "--format", "{{json .}}", container_id])
-        .output()
-        .ok()?;
+    let mut cmd = Command::new("docker");
+    cmd.args(["inspect", "--format", "{{json .}}", container_id]);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let output = cmd.output().ok()?;
 
     if !output.status.success() {
         return None;
@@ -173,9 +187,12 @@ pub fn get_container_status(container_id: &str) -> Option<ContainerStatus> {
 // ===== Docker Compose Operations =====
 
 pub fn stop_compose(compose_file: &str, directory: &str) -> Result<(), String> {
-    let output = Command::new("docker")
-        .args(["compose", "-f", compose_file, "down"])
-        .current_dir(directory)
+    let mut cmd = Command::new("docker");
+    cmd.args(["compose", "-f", compose_file, "down"])
+        .current_dir(directory);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let output = cmd
         .output()
         .map_err(|e| format!("Failed to run docker compose down: {}", e))?;
 

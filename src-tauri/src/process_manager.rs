@@ -1,9 +1,14 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 use crate::models::{ProcessStatus, RunMode};
 
@@ -78,11 +83,14 @@ impl ProcessManager {
         command: &str,
         directory: &str,
     ) -> Result<u32, String> {
-        let mut child = Command::new("cmd")
-            .args(["/C", command])
+        let mut cmd = Command::new("cmd");
+        cmd.args(["/C", command])
             .current_dir(directory)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        let mut child = cmd
             .spawn()
             .map_err(|e| format!("Failed to spawn process: {}", e))?;
 
@@ -152,11 +160,15 @@ impl ProcessManager {
             .map_err(|e| format!("Lock error: {}", e))?;
 
         if let Some(handle) = processes.get_mut(id) {
-            let mut log_child = Command::new("docker")
+            let mut log_cmd = Command::new("docker");
+            log_cmd
                 .args(["compose", "-f", compose_file, "logs", "-f", "--no-color"])
                 .current_dir(directory)
                 .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
+                .stderr(Stdio::piped());
+            #[cfg(target_os = "windows")]
+            log_cmd.creation_flags(CREATE_NO_WINDOW);
+            let mut log_child = log_cmd
                 .spawn()
                 .map_err(|e| format!("Failed to spawn docker logs: {}", e))?;
 
@@ -205,10 +217,14 @@ impl ProcessManager {
             .map_err(|e| format!("Lock error: {}", e))?;
 
         if let Some(handle) = processes.get_mut(id) {
-            let mut log_child = Command::new("docker")
+            let mut log_cmd = Command::new("docker");
+            log_cmd
                 .args(["logs", "-f", "--tail", "200", container_id])
                 .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
+                .stderr(Stdio::piped());
+            #[cfg(target_os = "windows")]
+            log_cmd.creation_flags(CREATE_NO_WINDOW);
+            let mut log_child = log_cmd
                 .spawn()
                 .map_err(|e| format!("Failed to spawn docker logs: {}", e))?;
 
