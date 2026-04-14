@@ -35,8 +35,17 @@ pub fn run() {
                 )?;
             }
 
-            // Register plugins
-            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            // Register updater plugin — pass /D=<current_install_dir> so the NSIS
+            // installer always updates the same directory the app is running from,
+            // even if the user chose a custom install location.
+            let mut updater_builder = tauri_plugin_updater::Builder::new();
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(install_dir) = exe_path.parent() {
+                    updater_builder = updater_builder
+                        .installer_arg(format!("/D={}", install_dir.display()));
+                }
+            }
+            app.handle().plugin(updater_builder.build())?;
             app.handle().plugin(tauri_plugin_opener::init())?;
 
             let config_dir = dirs::data_dir()
