@@ -32,6 +32,7 @@ export default function DetailPanel({
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [selectedMode, setSelectedMode] = useState<RunMode>("Dev");
   const offsetRef = useRef(0);
+  const lastRunPidRef = useRef<number | undefined>(undefined);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const isRunning = status && (status.status === "Running" || status.status === "Starting");
@@ -78,13 +79,29 @@ export default function DetailPanel({
     }, 200);
   }, [onClose]);
 
-  // Reset logs when process changes
+  // Reset logs when switching to a different process
   useEffect(() => {
     setLogLines([]);
     offsetRef.current = 0;
+    lastRunPidRef.current = undefined;
     setIsAutoScroll(true);
     setIsClosing(false);
   }, [process.id]);
+
+  // Reset logs when this process starts a NEW run (restart / stop+start gives it
+  // a new PID and a fresh backend log buffer). Without this, the poll keeps using
+  // the previous run's offset against an empty buffer and the old logs stay frozen.
+  // A bare stop (pid -> undefined) is intentionally left alone so the final output
+  // stays readable.
+  useEffect(() => {
+    const pid = status?.pid;
+    if (pid !== undefined && pid !== lastRunPidRef.current) {
+      lastRunPidRef.current = pid;
+      setLogLines([]);
+      offsetRef.current = 0;
+      setIsAutoScroll(true);
+    }
+  }, [status?.pid]);
 
   // Poll logs
   useEffect(() => {
